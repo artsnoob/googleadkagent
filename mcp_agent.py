@@ -48,7 +48,7 @@ async def async_main():
     # However, the LlmAgent expects a list of tools directly.
     # MCPToolset itself acts as a toolset that the LlmAgent can use.
     root_agent = LlmAgent(
-        model='gemini-2.0-flash', # Adjust model name if needed based on availability
+        model='gemini-2.5-flash-preview-04-17', # Adjust model name if needed based on availability
         name='filesystem_assistant',
         instruction='Help user interact with the local filesystem using available tools.',
         tools=[mcp_toolset_instance], # Provide the MCPToolset instance directly
