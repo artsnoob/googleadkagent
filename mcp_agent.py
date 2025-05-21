@@ -7,12 +7,10 @@ from google.adk.sessions import InMemorySessionService, Session
 from google.adk.runners import Runner
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 from google.genai import types
+from rich.console import Console # Import Console
 
-# Define ANSI color codes
-COLOR_GREEN = "\033[92m"
-COLOR_YELLOW = "\033[93m"
-COLOR_CYAN = "\033[96m"
-COLOR_RESET = "\033[0m"
+# Initialize Console
+console = Console()
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,7 +35,7 @@ async def async_main():
                   "@modelcontextprotocol/server-filesystem",
                   # IMPORTANT: This path specifies the folder the filesystem MCP server will operate on.
                   # We are using the current working directory for simplicity.
-                  "/Users/milanboonstra/code/googleadkagent"],
+                  "."],
         )
     )
     # Register the close method of mcp_toolset_instance to be called on exit
@@ -61,7 +59,7 @@ async def async_main():
         session_service=session_service,
     )
 
-    print("Running interactive agent. Type 'exit' to quit.")
+    console.print("Running interactive agent. Type 'exit' to quit.")
     while True:
       user_input = input("You: ")
       if user_input.lower() == 'exit':
@@ -77,18 +75,35 @@ async def async_main():
         if event.content and event.content.parts:
           for part in event.content.parts:
             if part.text:
-              print(f"{COLOR_GREEN}Agent Response: {part.text}{COLOR_RESET}")
+              console.print(f"[green]Agent Response: {part.text}[/green]")
             if part.function_call:
-              print(f"{COLOR_YELLOW}Tool Call: {part.function_call.name}({part.function_call.args}){COLOR_RESET}")
+              console.print(f"[dim yellow]Interpreter: The agent is about to ask an external tool ([bold]{part.function_call.name}[/bold]) to perform an action.[/dim yellow]")
+              console.print(f"[yellow]Agent is attempting to use the [bold]{part.function_call.name}[/bold] tool with the following parameters:[/yellow]")
+              console.print(part.function_call.args)
             if part.function_response:
-              print(f"{COLOR_CYAN}Tool Response: {part.function_response.response}{COLOR_RESET}")
-        else:
-          print(f"Event received: {event}")
+              console.print(f"[cyan]Tool [bold]{part.function_response.name}[/bold] responded:[/cyan]")
+              response_data = part.function_response.response # This is usually a dict
 
-  print("Cleanup complete.") # This will be printed after exit_stack.aclose() implicitly
+              is_error = isinstance(response_data, dict) and "error" in response_data # A common pattern
+              if is_error:
+                  console.print(f"[red]Error reported by tool:[/red]")
+                  console.print(response_data['error'])
+              
+              # Print the full response for transparency. Rich will format it.
+              console.print(response_data)
+
+              # Add interpretive context after processing the response
+              if is_error:
+                  console.print(f"[dim red]Interpreter: The tool ([bold]{part.function_response.name}[/bold]) reported an issue, as detailed above.[/dim red]")
+              else:
+                  console.print(f"[dim cyan]Interpreter: The tool ([bold]{part.function_response.name}[/bold]) has completed its execution and provided a response.[/dim cyan]")
+        else:
+          console.print(f"Event received: {event}")
+
+  console.print("Cleanup complete.") # This will be printed after exit_stack.aclose() implicitly
 
 if __name__ == '__main__':
   try:
     asyncio.run(async_main())
   except Exception as e:
-    print(f"An error occurred: {e}")
+    console.print(f"[red]An error occurred: {e}[/red]")
