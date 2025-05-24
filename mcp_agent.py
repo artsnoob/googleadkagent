@@ -82,6 +82,18 @@ async def async_main():
     # Register the close method of mcp_toolset_instance_content_scraper to be called on exit
     exit_stack.push_async_callback(mcp_toolset_instance_content_scraper.close)
 
+    # Instantiate MCPToolset for the fetch server
+    mcp_toolset_instance_fetch = MCPToolset(
+        connection_params=StdioServerParameters(
+            command='node', # Command to run the server
+            args=[          # Arguments for the command
+                "/Users/milanboonstra/Documents/Cline/MCP/fetch-server/build/index.js"
+            ],
+        )
+    )
+    # Register the close method of mcp_toolset_instance_fetch to be called on exit
+    exit_stack.push_async_callback(mcp_toolset_instance_fetch.close)
+
     # Create separate agents due to ADK limitations:
     # Built-in tools (like google_search) cannot be combined with other tools in the same agent
     
@@ -116,6 +128,14 @@ async def async_main():
         instruction='You are a specialist in scraping content from web sources like Reddit, RSS feeds, and Twitter using the MCP content scraper server. Help users gather information from these sources.',
         tools=[mcp_toolset_instance_content_scraper],
     )
+
+    # Fetch agent
+    fetch_agent = LlmAgent(
+        model='gemini-2.5-flash-preview-04-17',
+        name='fetch_agent',
+        instruction='You are a specialist in fetching and processing web page content using the MCP fetch server. Help users retrieve content from URLs, optionally converting to Markdown or searching within the content.',
+        tools=[mcp_toolset_instance_fetch],
+    )
     
     # Import agent_tool for creating the root agent
     from google.adk.tools import agent_tool
@@ -128,6 +148,7 @@ async def async_main():
 - For filesystem operations (e.g., read, write, list files, save content to files in the 'agent_files' directory), delegate to filesystem_agent.
 - For web searches (e.g., finding current information, general queries), delegate to search_agent.
 - For executing code snippets, delegate to mcp_code_executor_agent.
+- For fetching content from a specific URL (e.g., "fetch example.com", "get content of page X as markdown"), delegate to fetch_agent. This agent can use tools like `fetch` (to get content, optionally as markdown) and `fetch_and_search` (to get content and search within it using regex).
 - For scraping content from web sources:
     - Delegate to content_scraper_agent. This agent can use tools like `scrape_rss`, `scrape_reddit`, and `scrape_twitter`.
     - Keywords: "scrape", "get posts from Reddit", "fetch tweets", "latest news from RSS", "get articles from [URL]", "AI news".
@@ -159,7 +180,8 @@ Ensure you understand the user's request and delegate to the most appropriate sp
             agent_tool.AgentTool(agent=filesystem_agent),
             agent_tool.AgentTool(agent=search_agent),
             agent_tool.AgentTool(agent=mcp_code_executor_agent),
-            agent_tool.AgentTool(agent=content_scraper_agent)
+            agent_tool.AgentTool(agent=content_scraper_agent),
+            agent_tool.AgentTool(agent=fetch_agent)
         ],
     )
 
