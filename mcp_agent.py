@@ -7,6 +7,7 @@ from google.adk.sessions import InMemorySessionService, Session
 from google.adk.runners import Runner
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 from google.genai import types
+from google.adk.tools import google_search
 
 # Define ANSI color codes
 COLOR_GREEN = "\033[92m"
@@ -29,8 +30,8 @@ async def async_main():
 
   # Create an AsyncExitStack to manage the lifecycle of MCPToolset
   async with AsyncExitStack() as exit_stack:
-    # Instantiate MCPToolset directly
-    mcp_toolset_instance = MCPToolset(
+    # Instantiate MCPToolset for the filesystem server
+    mcp_toolset_instance_filesystem = MCPToolset(
         connection_params=StdioServerParameters(
             command='npx', # Command to run the server
             args=["-y",    # Arguments for the command
@@ -40,18 +41,67 @@ async def async_main():
                   "/Users/milanboonstra/code/googleadkagent"],
         )
     )
-    # Register the close method of mcp_toolset_instance to be called on exit
-    # Use push_async_callback for coroutines
-    exit_stack.push_async_callback(mcp_toolset_instance.close)
+    # Register the close method of mcp_toolset_instance_filesystem to be called on exit
+    exit_stack.push_async_callback(mcp_toolset_instance_filesystem.close)
 
-    # The tools are now available via mcp_toolset_instance.get_tools()
-    # However, the LlmAgent expects a list of tools directly.
-    # MCPToolset itself acts as a toolset that the LlmAgent can use.
+    # Instantiate MCPToolset for the code executor server
+    code_storage_dir = os.path.join(os.getcwd(), ".mcp_code_storage")
+    mcp_toolset_instance_code_executor = MCPToolset(
+        connection_params=StdioServerParameters(
+            command='env', # Use 'env' to set environment variables
+            args=[
+                f"CODE_STORAGE_DIR={code_storage_dir}",
+                "ENV_TYPE=venv",
+                f"VENV_PATH={os.path.join(os.getcwd(), '.mcp_venv')}",
+                "node",
+                "/Users/milanboonstra/code/openaisdkmcp_server_copy/mcp_code_executor/build/index.js"
+            ], # Arguments for the command, including env vars and node execution
+            env={} # Environment variables are now set in args
+        )
+    )
+    # Register the close method of mcp_toolset_instance_code_executor to be called on exit
+    exit_stack.push_async_callback(mcp_toolset_instance_code_executor.close)
+
+    # Create separate agents due to ADK limitations:
+    # Built-in tools (like google_search) cannot be combined with other tools in the same agent
+    
+    # Filesystem agent with MCP toolset
+    filesystem_agent = LlmAgent(
+        model='gemini-2.5-flash-preview-04-17',
+        name='filesystem_agent',
+        instruction='You are a specialist in filesystem operations. Help users interact with the local filesystem using available tools.',
+        tools=[mcp_toolset_instance_filesystem],
+    )
+    
+    # Search agent with Google Search
+    search_agent = LlmAgent(
+        model='gemini-2.5-flash-preview-04-17',
+        name='search_agent', 
+        instruction='You are a specialist in web search. Help users find current information from the web.',
+        tools=[google_search],
+    )
+
+    # MCP Code Executor agent
+    mcp_code_executor_agent = LlmAgent(
+        model='gemini-2.5-flash-preview-04-17',
+        name='mcp_code_executor_agent',
+        instruction='You are a specialist in code execution using the MCP code executor server. Help users run code via this server.',
+        tools=[mcp_toolset_instance_code_executor],
+    )
+    
+    # Import agent_tool for creating the root agent
+    from google.adk.tools import agent_tool
+    
+    # Root agent that can delegate to filesystem, search, and MCP code executor agents
     root_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17', # Adjust model name if needed based on availability
-        name='filesystem_assistant',
-        instruction='Help user interact with the local filesystem using available tools.',
-        tools=[mcp_toolset_instance], # Provide the MCPToolset instance directly
+        model='gemini-2.5-flash-preview-04-17',
+        name='assistant',
+        instruction='You are a helpful assistant that can interact with the local filesystem, search the web for current information, and execute code via an MCP server. Delegate filesystem tasks to the filesystem_agent, web search tasks to the search_agent, and MCP-based code execution to mcp_code_executor_agent.',
+        tools=[
+            agent_tool.AgentTool(agent=filesystem_agent),
+            agent_tool.AgentTool(agent=search_agent),
+            agent_tool.AgentTool(agent=mcp_code_executor_agent)
+        ],
     )
 
     runner = Runner(
@@ -82,7 +132,18 @@ async def async_main():
               print(f"{COLOR_YELLOW}Tool Call: {part.function_call.name}({part.function_call.args}){COLOR_RESET}")
             if part.function_response:
               print(f"{COLOR_CYAN}Tool Response: {part.function_response.response}{COLOR_RESET}")
-        else:
+        
+        # Display grounding metadata if available
+        if hasattr(event, 'candidates') and event.candidates:
+          for candidate in event.candidates:
+            if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+              grounding = candidate.grounding_metadata
+              if hasattr(grounding, 'web_search_queries') and grounding.web_search_queries:
+                print(f"{COLOR_CYAN}🔍 Web Search Queries: {', '.join(grounding.web_search_queries)}{COLOR_RESET}")
+              if hasattr(grounding, 'grounding_chunks') and grounding.grounding_chunks:
+                print(f"{COLOR_CYAN}📚 Found {len(grounding.grounding_chunks)} grounding sources{COLOR_RESET}")
+        
+        if not (event.content and event.content.parts):
           print(f"Event received: {event}")
 
   print("Cleanup complete.") # This will be printed after exit_stack.aclose() implicitly
