@@ -70,6 +70,18 @@ async def async_main():
     # Register the close method of mcp_toolset_instance_code_executor to be called on exit
     exit_stack.push_async_callback(mcp_toolset_instance_code_executor.close)
 
+    # Instantiate MCPToolset for the content scraper server
+    mcp_toolset_instance_content_scraper = MCPToolset(
+        connection_params=StdioServerParameters(
+            command='node', # Command to run the server
+            args=[          # Arguments for the command
+                "/Users/milanboonstra/Documents/Cline/MCP/contentscraper-mcp-server/build/index.js"
+            ],
+        )
+    )
+    # Register the close method of mcp_toolset_instance_content_scraper to be called on exit
+    exit_stack.push_async_callback(mcp_toolset_instance_content_scraper.close)
+
     # Create separate agents due to ADK limitations:
     # Built-in tools (like google_search) cannot be combined with other tools in the same agent
     
@@ -96,6 +108,14 @@ async def async_main():
         instruction='You are a specialist in code execution using the MCP code executor server. Help users run code via this server.',
         tools=[mcp_toolset_instance_code_executor],
     )
+
+    # Content Scraper agent
+    content_scraper_agent = LlmAgent(
+        model='gemini-2.5-flash-preview-04-17',
+        name='content_scraper_agent',
+        instruction='You are a specialist in scraping content from web sources like Reddit, RSS feeds, and Twitter using the MCP content scraper server. Help users gather information from these sources.',
+        tools=[mcp_toolset_instance_content_scraper],
+    )
     
     # Import agent_tool for creating the root agent
     from google.adk.tools import agent_tool
@@ -104,11 +124,42 @@ async def async_main():
     root_agent = LlmAgent(
         model='gemini-2.5-flash-preview-04-17',
         name='assistant',
-        instruction='You are a helpful assistant that can interact with the local filesystem, search the web for current information, and execute code via an MCP server. Delegate filesystem tasks to the filesystem_agent, web search tasks to the search_agent, and MCP-based code execution to mcp_code_executor_agent.',
+        instruction='''You are a helpful assistant.
+- For filesystem operations (e.g., read, write, list files, save content to files in the 'agent_files' directory), delegate to filesystem_agent.
+- For web searches (e.g., finding current information, general queries), delegate to search_agent.
+- For executing code snippets, delegate to mcp_code_executor_agent.
+- For scraping content from web sources:
+    - Delegate to content_scraper_agent. This agent can use tools like `scrape_rss`, `scrape_reddit`, and `scrape_twitter`.
+    - Keywords: "scrape", "get posts from Reddit", "fetch tweets", "latest news from RSS", "get articles from [URL]", "AI news".
+    - Default sources for general "AI news" requests:
+        - Twitter Accounts: ["OpenAI", "GoogleDeepMind", "GoogleAI", "MIT_CSAIL", "AndrewYNg", "huggingface", "a16z", "alliekmiller", "mattshumer_", "OfficialLoganK", "drfeifei", "jeremyphoward", "demishassabis", "ylecun", "karpathy", "RickLamers"] (Use with `scrape_twitter` tool, `posts_per_account` can be defaulted to 3-5 if not specified by user).
+        - Reddit Subreddits: ["LocalLLaMA", "singularity", "artificial"] (Use with `scrape_reddit` tool, `posts_per_subreddit` can be defaulted to 10 if not specified by user).
+        - RSS Feeds: [{"name": "TechCrunch", "url": "https://techcrunch.com/feed/"}, {"name": "Wired", "url": "https://www.wired.com/feed/rss"}, {"name": "MIT Technology Review", "url": "https://www.technologyreview.com/feed/"}, {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/index"}, {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"}] (Use with `scrape_rss` tool, `articles_per_feed` can be defaulted to 5-10 if not specified by user, and `saveAsMarkdown` can be set to true if user requests Markdown output).
+    - If the user asks to scrape from RSS, Reddit, or Twitter and provides specific URLs, subreddits, or accounts, use those instead of the defaults.
+    - If the user makes a general request (e.g., "latest AI news") without specifying sources, use the default sources listed above.
+    - The `scrape_rss` tool has a `saveAsMarkdown` parameter. If the user requests Markdown output from RSS, set this to true.
+    - For Reddit and Twitter, the `scrape_reddit` and `scrape_twitter` tools return JSON data. If the user asks to save this data as Markdown, the `content_scraper_agent` will provide the JSON. You (the assistant) must then process this JSON into a suitable Markdown format (e.g., for each item: "### [Title](Link)\n\nContent snippet...") and then use the `filesystem_agent` to save it to a file (e.g., "ai_news_summary.md") in the 'agent_files' directory.
+- For comprehensive website scraping (e.g., "scrape example.com and all its subpages and save to output.md"):
+    - Acknowledge the request. Explain that you will generate a Python script to perform the crawl and then ask the `mcp_code_executor_agent` to run this script.
+    - The Python script you generate should:
+        - Be a single block of code.
+        - Explicitly install required Python packages (e.g., `requests`, `beautifulsoup4`, `markdownify`) using `subprocess.run([sys.executable, '-m', 'pip', 'install', 'package_name'])` at the beginning of the script. Ensure to import `sys` and `subprocess`.
+        - Accept the starting URL and the desired output filename (e.g., `adk_docs.md`) as parameters or have them clearly defined at the top of the script.
+        - Recursively crawl all accessible subpages originating from the starting URL, staying within the same domain.
+        - For each crawled page, convert its HTML content to Markdown.
+        - Aggregate all Markdown content from all crawled pages into a single string.
+        - Save the aggregated Markdown content to an **absolute path**: `/Users/milanboonstra/code/googleadkagent/agent_files/YOUR_OUTPUT_FILENAME.md`. Replace `YOUR_OUTPUT_FILENAME.md` with the filename requested by the user or a sensible default.
+        - Include error handling for network requests and parsing.
+        - Print a success message upon completion, including the path to the saved file.
+    - After generating the script, delegate its execution (as a string of code) to the `mcp_code_executor_agent`.
+    - Once the `mcp_code_executor_agent` reports completion (or error), inform the user of the result.
+    - If successful, you can use the `filesystem_agent` to confirm the existence of the output file in the `/Users/milanboonstra/code/googleadkagent/agent_files/` directory.
+Ensure you understand the user's request and delegate to the most appropriate specialized agent or generate code as needed. If a task requires multiple steps across different agents (e.g., scrape then save), coordinate these steps sequentially. When saving, confirm the filename with the user or use a descriptive default like "ai_news_YYYY-MM-DD.md".''' ,
         tools=[
             agent_tool.AgentTool(agent=filesystem_agent),
             agent_tool.AgentTool(agent=search_agent),
-            agent_tool.AgentTool(agent=mcp_code_executor_agent)
+            agent_tool.AgentTool(agent=mcp_code_executor_agent),
+            agent_tool.AgentTool(agent=content_scraper_agent)
         ],
     )
 
