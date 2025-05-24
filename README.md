@@ -28,6 +28,13 @@ This project demonstrates the use of the Google Agent Development Kit (ADK) to c
    GOOGLE_GENAI_USE_VERTEXAI=FALSE # Set to TRUE if using Vertex AI
    ```
 
+3. **MCP Server Setup:**
+   This project relies on a local MCP filesystem server. To set it up:
+   ```bash
+   npx -y @google-cloud/adk-mcp-filesystem-server@latest
+   ```
+   This command will start the filesystem server, which the agent will connect to for file operations.
+
 ## Usage
 To run the interactive agent, execute the `mcp_agent.py` script:
 
@@ -39,6 +46,8 @@ The agent will start, and you can type commands like "list files in the current 
 
 ## Project Structure
 - `mcp_agent.py`: The main script that initializes and runs the ADK agent.
-- `google_adk_documentation.md`: Comprehensive documentation and code snippets for the Google ADK.
+- `mcp_agent_utils.py`: Utility functions for the MCP agent.
+- `agent_files/`: Directory containing files used by the agent.
+- `README.md`: Project README file.
 - `requirements.txt`: Lists Python dependencies.
 - `.env`: Environment variables (e.g., API keys).
