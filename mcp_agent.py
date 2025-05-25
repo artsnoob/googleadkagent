@@ -122,6 +122,25 @@ async def async_main():
     # Register the close method of mcp_toolset_instance_fetch to be called on exit
     exit_stack.push_async_callback(mcp_toolset_instance_fetch.close)
 
+    # Instantiate MCPToolset for the Perplexity server
+    perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_api_key:
+        print(f"{COLOR_YELLOW}Warning: PERPLEXITY_API_KEY is not set in .env. Perplexity MCP server might fail.{COLOR_RESET}")
+    
+    mcp_toolset_instance_perplexity = MCPToolset(
+        connection_params=StdioServerParameters(
+            command='env', # Use 'env' to set environment variables
+            args=[
+                f"PERPLEXITY_API_KEY={perplexity_api_key}", # Pass the API key as an environment variable
+                "node",         # Command to run the server
+                "/Users/milanboonstra/Documents/Cline/MCP/perplexity-mcp/build/index.js"
+            ],
+            env={} # Environment variables are now set in args
+        )
+    )
+    # Register the close method of mcp_toolset_instance_perplexity to be called on exit
+    exit_stack.push_async_callback(mcp_toolset_instance_perplexity.close)
+
     # Create separate agents due to ADK limitations:
     # Built-in tools (like google_search) cannot be combined with other tools in the same agent
     
@@ -164,6 +183,14 @@ async def async_main():
         instruction='You are a specialist in fetching and processing web page content using the MCP fetch server. Help users retrieve content from URLs, optionally converting to Markdown or searching within the content.',
         tools=[mcp_toolset_instance_fetch],
     )
+
+    # Perplexity agent
+    perplexity_agent = LlmAgent(
+        model=model_config_to_use,
+        name='perplexity_agent',
+        instruction='You are a specialist in leveraging Perplexity AI for various tasks. Help users with chat, general search, documentation retrieval, API discovery, and checking for deprecated code using the Perplexity MCP server.',
+        tools=[mcp_toolset_instance_perplexity],
+    )
     
     # Import agent_tool for creating the root agent
     from google.adk.tools import agent_tool
@@ -204,13 +231,20 @@ async def async_main():
     - After generating the script, delegate its execution (as a string of code) to the `mcp_code_executor_agent`.
     - Once the `mcp_code_executor_agent` reports completion (or error), inform the user of the result.
     - If successful, you can use the `filesystem_agent` to confirm the existence of the output file in the `/Users/milanboonstra/code/googleadkagent/agent_files/` directory.
+- For tasks involving Perplexity AI (chat, comprehensive search, documentation, API finding, code deprecation checks), delegate to perplexity_agent:
+    - `chat_perplexity`: For conversational interactions with Perplexity AI, or to continue an existing Perplexity chat. Keywords: "chat with Perplexity", "ask Perplexity", "continue Perplexity chat".
+    - `search`: For general search queries where a comprehensive answer or information synthesis is needed. This can be an alternative to `search_agent`. Keywords: "Perplexity search", "find info with Perplexity".
+    - `get_documentation`: To get documentation and usage examples for a specific technology, library, or API. Keywords: "Perplexity docs for X", "get Perplexity documentation on Y".
+    - `find_apis`: To find and evaluate APIs for a project based on requirements. Keywords: "Perplexity find API for X", "discover APIs with Perplexity".
+    - `check_deprecated_code`: To check if code snippets or dependencies might be using deprecated features. Keywords: "Perplexity check deprecated code", "is this code outdated Perplexity".
 Ensure you understand the user's request and delegate to the most appropriate specialized agent or generate code as needed. If a task requires multiple steps across different agents (e.g., scrape then save), coordinate these steps sequentially. When saving, confirm the filename with the user or use a descriptive default like "ai_news_YYYY-MM-DD.md".''' ,
         tools=[
             agent_tool.AgentTool(agent=filesystem_agent),
             agent_tool.AgentTool(agent=search_agent),
             agent_tool.AgentTool(agent=mcp_code_executor_agent),
             agent_tool.AgentTool(agent=content_scraper_agent),
-            agent_tool.AgentTool(agent=fetch_agent)
+            agent_tool.AgentTool(agent=fetch_agent),
+            agent_tool.AgentTool(agent=perplexity_agent)
         ],
     )
 
