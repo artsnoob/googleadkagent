@@ -1,8 +1,10 @@
 import asyncio
 from contextlib import AsyncExitStack
 import os # Import os
+import argparse # Import argparse for command-line arguments
 from dotenv import load_dotenv # Import load_dotenv
 from google.adk.agents import LlmAgent
+from google.adk.models.lite_llm import LiteLlm # Import LiteLlm
 from google.adk.sessions import InMemorySessionService, Session
 from google.adk.runners import Runner
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
@@ -24,10 +26,36 @@ from mcp_agent_utils import (
 # Load environment variables from .env file
 load_dotenv()
 
-
+# --- Argument Parsing for Model Selection ---
+parser = argparse.ArgumentParser(description="Run ADK Agent with selectable LLM provider and model.")
+parser.add_argument(
+    "--llm_provider",
+    type=str,
+    default="gemini",
+    choices=["gemini", "openrouter"],
+    help="The LLM provider to use ('gemini' or 'openrouter'). Default is 'gemini'."
+)
+parser.add_argument(
+    "--model_name",
+    type=str,
+    default="gemini-2.5-flash-preview-04-17",
+    help="The model name to use. For Gemini, e.g., 'gemini-2.5-flash-preview-04-17'. For OpenRouter, e.g., 'openrouter/anthropic/claude-3-haiku'. Ensure OPENROUTER_API_KEY is set in .env if using OpenRouter."
+)
+args = parser.parse_args()
 
 # --- Main Execution Logic ---
 async def async_main():
+  # Determine model configuration based on command-line arguments
+  model_config_to_use = None
+  if args.llm_provider == "openrouter":
+    if not os.getenv("OPENROUTER_API_KEY"):
+      print(f"{COLOR_YELLOW}Warning: --llm_provider is 'openrouter' but OPENROUTER_API_KEY is not set in .env. LiteLLM might fail.{COLOR_RESET}")
+    model_config_to_use = LiteLlm(model=args.model_name)
+    print(f"{COLOR_MAGENTA}Using OpenRouter model: {args.model_name}{COLOR_RESET}")
+  else: # Default to Gemini
+    model_config_to_use = args.model_name
+    print(f"{COLOR_MAGENTA}Using Gemini model: {args.model_name}{COLOR_RESET}")
+
   session_service = InMemorySessionService()
   # Artifact service might not be needed for this example
   # artifacts_service = InMemoryArtifactService() # Uncomment if you need artifact service
@@ -99,7 +127,7 @@ async def async_main():
     
     # Filesystem agent with MCP toolset
     filesystem_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17',
+        model=model_config_to_use,
         name='filesystem_agent',
         instruction='You are a specialist in filesystem operations. Help users interact with the local filesystem using available tools. When asked to save a file, use the "agent_files" directory.',
         tools=[mcp_toolset_instance_filesystem],
@@ -107,7 +135,7 @@ async def async_main():
     
     # Search agent with Google Search
     search_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17',
+        model=model_config_to_use,
         name='search_agent', 
         instruction='You are a specialist in web search. Help users find current information from the web.',
         tools=[google_search],
@@ -115,7 +143,7 @@ async def async_main():
 
     # MCP Code Executor agent
     mcp_code_executor_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17',
+        model=model_config_to_use,
         name='mcp_code_executor_agent',
         instruction='You are a specialist in code execution using the MCP code executor server. Help users run code via this server.',
         tools=[mcp_toolset_instance_code_executor],
@@ -123,7 +151,7 @@ async def async_main():
 
     # Content Scraper agent
     content_scraper_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17',
+        model=model_config_to_use,
         name='content_scraper_agent',
         instruction='You are a specialist in scraping content from web sources like Reddit, RSS feeds, and Twitter using the MCP content scraper server. Help users gather information from these sources.',
         tools=[mcp_toolset_instance_content_scraper],
@@ -131,7 +159,7 @@ async def async_main():
 
     # Fetch agent
     fetch_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17',
+        model=model_config_to_use,
         name='fetch_agent',
         instruction='You are a specialist in fetching and processing web page content using the MCP fetch server. Help users retrieve content from URLs, optionally converting to Markdown or searching within the content.',
         tools=[mcp_toolset_instance_fetch],
@@ -142,9 +170,10 @@ async def async_main():
     
     # Root agent that can delegate to filesystem, search, and MCP code executor agents
     root_agent = LlmAgent(
-        model='gemini-2.5-flash-preview-04-17',
+        model=model_config_to_use,
         name='assistant',
         instruction='''You are a helpful assistant.
+- IMPORTANT: When providing information obtained from web sources (e.g., via search_agent, content_scraper_agent, fetch_agent, or any tool that accesses online content), ALWAYS include the source URL(s) for the information. This helps the user verify the information and explore further if needed.
 - For filesystem operations (e.g., read, write, list files, save content to files in the 'agent_files' directory), delegate to filesystem_agent.
 - For web searches (e.g., finding current information, general queries), delegate to search_agent.
 - For executing code snippets, delegate to mcp_code_executor_agent.
