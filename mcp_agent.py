@@ -8,8 +8,7 @@ from google.adk.models.lite_llm import LiteLlm # Import LiteLlm
 from google.adk.sessions import InMemorySessionService, Session
 from google.adk.runners import Runner
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
-from google.genai import types # Still needed for types.Content, types.Part
-from google.adk.tools import google_search
+from google.genai import types # Still needed for types.Content, types.Part, types.Tool, types.GoogleSearch, types.UrlContext
 # Import from our new utils file
 from mcp_agent_utils import (
     COLOR_GREEN,
@@ -17,8 +16,12 @@ from mcp_agent_utils import (
     COLOR_CYAN,
     COLOR_MAGENTA,
     COLOR_RESET,
-    pretty_print_json_string
+    pretty_print_json_string,
 )
+
+# Define blue color for URL context metadata
+COLOR_BLUE = "\033[94m"
+
 # The apply_genai_content_text_patch() is called within mcp_agent_utils.py upon import.
 
 
@@ -38,8 +41,8 @@ parser.add_argument(
 parser.add_argument(
     "--model_name",
     type=str,
-    default="gemini-2.5-flash-preview-04-17",
-    help="The model name to use. For Gemini, e.g., 'gemini-2.5-flash-preview-04-17'. For OpenRouter, e.g., 'openrouter/anthropic/claude-3-haiku'. Ensure OPENROUTER_API_KEY is set in .env if using OpenRouter."
+    default="gemini-2.5-flash-preview-05-20",
+    help="The model name to use. For Gemini, e.g., 'gemini-2.5-flash-preview-05-20'. For OpenRouter, e.g., 'openrouter/anthropic/claude-3-haiku'. Ensure OPENROUTER_API_KEY is set in .env if using OpenRouter."
 )
 args = parser.parse_args()
 
@@ -152,12 +155,16 @@ async def async_main():
         tools=[mcp_toolset_instance_filesystem],
     )
     
-    # Search agent with Google Search
+    # Search agent with Google Search and URL Context for grounding
+    # Configure Gemini API tools via GenerationConfig
+    search_agent_generation_config = types.GenerationConfig()
+
     search_agent = LlmAgent(
         model=model_config_to_use,
-        name='search_agent', 
-        instruction='You are a specialist in web search. Help users find current information from the web.',
-        tools=[google_search],
+        name='search_agent',
+        instruction='You are a specialist in web search. Help users find current information from the web. You can use Google Search for broad discovery and then analyze content from specific URLs (either provided by the user or found via search) for deeper understanding and grounding your responses. Your responses will be automatically grounded using these capabilities.',
+        tools=[], # No ADK tools, Gemini tools are in generation_config
+        generate_content_config=search_agent_generation_config,
     )
 
     # MCP Code Executor agent
@@ -202,7 +209,7 @@ async def async_main():
         instruction='''You are a helpful assistant.
 - IMPORTANT: When providing information obtained from web sources (e.g., via search_agent, content_scraper_agent, fetch_agent, or any tool that accesses online content), ALWAYS include the source URL(s) for the information. This helps the user verify the information and explore further if needed.
 - For filesystem operations (e.g., read, write, list files, save content to files in the 'agent_files' directory), delegate to filesystem_agent.
-- For web searches (e.g., finding current information, general queries), delegate to search_agent.
+- For web searches, including tasks that require analyzing content from specific URLs or grounding responses with web content, delegate to search_agent. This agent can perform Google searches and use URL content for comprehensive answers.
 - For executing code snippets, delegate to mcp_code_executor_agent.
 - For fetching content from a specific URL (e.g., "fetch example.com", "get content of page X as markdown"), delegate to fetch_agent. This agent can use tools like `fetch` (to get content, optionally as markdown) and `fetch_and_search` (to get content and search within it using regex).
 - For scraping content from web sources:
@@ -316,10 +323,44 @@ Ensure you understand the user's request and delegate to the most appropriate sp
                 has_printed_content = True
               if hasattr(grounding, 'grounding_chunks') and grounding.grounding_chunks:
                 print(f"{COLOR_CYAN}--- Grounding Sources ---{COLOR_RESET}")
-                print(f"{COLOR_CYAN}📚 Found {len(grounding.grounding_chunks)} source(s){COLOR_RESET}")
-                # Optionally, print details of each chunk if needed
-                # for i, chunk_info in enumerate(grounding.grounding_chunks):
-                # print(f"{COLOR_CYAN} Source {i+1}: {chunk_info}{COLOR_RESET}")
+                for i, chunk in enumerate(grounding.grounding_chunks):
+                    title = "N/A"
+                    uri = "N/A"
+                    if hasattr(chunk, 'web'):
+                        if hasattr(chunk.web, 'title') and chunk.web.title:
+                            title = chunk.web.title
+                        if hasattr(chunk.web, 'uri') and chunk.web.uri:
+                            uri = chunk.web.uri
+                    print(f"{COLOR_CYAN}  Source {i+1}: {title} ({uri}){COLOR_RESET}")
+                print() # Add blank line for separation
+                has_printed_content = True
+              
+              # Display URL Context Metadata if available
+              if hasattr(candidate, 'url_context_metadata') and candidate.url_context_metadata:
+                  url_meta_data = candidate.url_context_metadata
+                  if hasattr(url_meta_data, 'url_metadata') and url_meta_data.url_metadata:
+                      print(f"{COLOR_BLUE}--- URL Context Metadata ---{COLOR_RESET}")
+                      for i, meta_item in enumerate(url_meta_data.url_metadata):
+                          retrieved_url = meta_item.retrieved_url if hasattr(meta_item, 'retrieved_url') else "N/A"
+                          status = meta_item.url_retrieval_status if hasattr(meta_item, 'url_retrieval_status') else "N/A"
+                          # Ensure status is converted to string if it's an enum-like object for printing
+                          status_str = str(status) if status != "N/A" else "N/A"
+                          print(f"{COLOR_BLUE}  URL {i+1}: {retrieved_url} (Status: {status_str}){COLOR_RESET}")
+                      print()
+                      has_printed_content = True
+
+              # Display rendered search suggestions HTML
+              if hasattr(grounding, 'search_entry_point') and \
+                 hasattr(grounding.search_entry_point, 'rendered_content') and \
+                 grounding.search_entry_point.rendered_content:
+                print(f"{COLOR_CYAN}--- Rendered Search Suggestions (HTML) ---{COLOR_RESET}")
+                # webSearchQueries (printed above) are the text of these suggestions.
+                # This rendered_content is HTML for rich display in a UI.
+                print(f"{COLOR_CYAN}Raw HTML for rich display (first 500 chars):{COLOR_RESET}")
+                html_content = grounding.search_entry_point.rendered_content
+                # Ensure html_content is a string before slicing
+                html_content_str = str(html_content)
+                print(f"{COLOR_MAGENTA}{html_content_str[:500]}{'...' if len(html_content_str) > 500 else ''}{COLOR_RESET}")
                 print() # Add blank line for separation
                 has_printed_content = True
         
