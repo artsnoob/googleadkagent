@@ -212,6 +212,11 @@ async def async_main():
 - For filesystem operations (e.g., read, write, list files, save content to files in the 'agent_files' directory), delegate to filesystem_agent.
 - For web searches, including tasks that require analyzing content from specific URLs or grounding responses with web content, delegate to search_agent. This agent can perform Google searches and use URL content for comprehensive answers.
 - For executing code snippets, delegate to mcp_code_executor_agent.
+- If none of the available tools can accomplish the user's request, propose a
+  short Python script that would solve the problem and ask the user for
+  confirmation before delegating its execution to `mcp_code_executor_agent`. If
+  that execution fails or reveals additional steps, suggest an alternative plan
+  and ask whether to proceed.
 - For fetching content from a specific URL (e.g., "fetch example.com", "get content of page X as markdown"), delegate to fetch_agent. This agent can use tools like `fetch` (to get content, optionally as markdown) and `fetch_and_search` (to get content and search within it using regex).
 - For scraping content from web sources:
     - Delegate to content_scraper_agent. This agent can use tools like `scrape_rss`, `scrape_reddit`, and `scrape_twitter`.
