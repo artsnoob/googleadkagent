@@ -10,6 +10,9 @@ This project demonstrates the use of the Google Agent Development Kit (ADK) to c
 - Integrates with Google Search.
 - Uses the `gemini-2.5-flash-preview-04-17` model for streaming responses.
 - Supports `python-dotenv` for environment variable management.
+- When none of the built-in tools fit a request, the agent can generate a short
+  Python script and execute it through the MCP code executor, asking for
+  confirmation if additional steps are required.
 
 ## Installation
 
