@@ -9,6 +9,7 @@ from google.adk.sessions import InMemorySessionService, Session
 from google.adk.runners import Runner
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 from google.genai import types # Still needed for types.Content, types.Part, types.Tool, types.GoogleSearch, types.UrlContext
+from google.adk.tools import google_search # Import google_search tool
 # Import from our new utils file
 from mcp_agent_utils import (
     COLOR_GREEN,
@@ -163,7 +164,7 @@ async def async_main():
         model=model_config_to_use,
         name='search_agent',
         instruction='You are a specialist in web search. Help users find current information from the web. You can use Google Search for broad discovery and then analyze content from specific URLs (either provided by the user or found via search) for deeper understanding and grounding your responses. Your responses will be automatically grounded using these capabilities.',
-        tools=[], # No ADK tools, Gemini tools are in generation_config
+        tools=[google_search], # Add google_search tool
         generate_content_config=search_agent_generation_config,
     )
 
