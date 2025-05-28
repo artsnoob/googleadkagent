@@ -126,7 +126,8 @@ async def async_main():
     )
 
     # Instantiate MCPToolset for the code executor server with error recovery
-    code_storage_dir = os.path.join(os.getcwd(), ".mcp_code_storage")
+    # Use the same directory as the filesystem MCP for file storage
+    code_storage_dir = "/Users/milanboonstra/code/googleadkagent/agent_files"
     mcp_toolset_instance_code_executor = await initialize_mcp_server(
         "code_executor_server",
         lambda: MCPToolset(
@@ -273,6 +274,12 @@ PRINCIPLES:
 - When package installation fails, suggest alternative libraries or manual installation steps
 - For execution errors, automatically debug and provide corrected versions
 - Suggest local development environment setup when remote execution isn't available
+
+FILE OPERATIONS:
+- ALWAYS save any files created by scripts to the ./agent_files/ directory
+- Use full path: ./agent_files/filename.ext when writing files
+- This ensures files are accessible to both the filesystem MCP and user's local system
+- Never save files to temporary directories or current working directory
 
 Be creative in solving problems through code and always aim for robust, efficient solutions.''',
         tools=code_executor_tools,
