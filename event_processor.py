@@ -22,14 +22,14 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
             if event.content and event.content.parts:
                 for part in event.content.parts:
                     if part.text:
-                        print_section_header("Agent Response", COLOR_GREEN, SYMBOL_THINKING, width=50)
+                        print_section_header("Agent Response", width=50)
                         # Print each line of multi-line text with color
                         for line in part.text.splitlines():
                             print(f"{COLOR_GREEN}{line}{COLOR_RESET}")
                         print() # Add blank line for separation
                         has_printed_content = True
                     if part.function_call:
-                        print_section_header(f"Tool Call: {part.function_call.name}", COLOR_YELLOW, SYMBOL_TOOL, width=50)
+                        print_section_header(f"Tool Call: {part.function_call.name}", width=50)
                         pretty_print_json_string(part.function_call.args, COLOR_YELLOW)
                         print() # Add blank line for separation
                         has_printed_content = True
@@ -56,13 +56,13 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                     if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                         grounding = candidate.grounding_metadata
                         if hasattr(grounding, 'web_search_queries') and grounding.web_search_queries:
-                            print_section_header("Web Search Queries", COLOR_CYAN, SYMBOL_SEARCH, width=50)
+                            print_section_header("Web Search Queries", width=50)
                             for query in grounding.web_search_queries:
                                 print(f"{COLOR_CYAN}  {SYMBOL_SEARCH} {query}{COLOR_RESET}")
                             print() # Add blank line for separation
                             has_printed_content = True
                         if hasattr(grounding, 'grounding_chunks') and grounding.grounding_chunks:
-                            print_section_header("Grounding Sources", COLOR_CYAN, SYMBOL_INFO, width=50)
+                            print_section_header("Grounding Sources", width=50)
                             for i, chunk in enumerate(grounding.grounding_chunks):
                                 title = "N/A"
                                 uri = "N/A"
@@ -80,7 +80,7 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         if hasattr(candidate, 'url_context_metadata') and candidate.url_context_metadata:
                             url_meta_data = candidate.url_context_metadata
                             if hasattr(url_meta_data, 'url_metadata') and url_meta_data.url_metadata:
-                                print_section_header("URL Context Metadata", COLOR_BLUE, SYMBOL_INFO, width=50)
+                                print_section_header("URL Context Metadata", width=50)
                                 for i, meta_item in enumerate(url_meta_data.url_metadata):
                                     retrieved_url = meta_item.retrieved_url if hasattr(meta_item, 'retrieved_url') else "N/A"
                                     status = meta_item.url_retrieval_status if hasattr(meta_item, 'url_retrieval_status') else "N/A"

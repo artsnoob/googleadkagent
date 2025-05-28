@@ -97,6 +97,23 @@ BOX_DOUBLE_BOTTOM_RIGHT = "╝"
 import time
 from datetime import datetime
 
+# Symbols that are often double-width in terminals
+DOUBLE_WIDTH_SYMBOLS = {
+    SYMBOL_TOOL, SYMBOL_SEARCH, SYMBOL_STATS, SYMBOL_LOADING, 
+    SYMBOL_ERROR, SYMBOL_WARNING, SYMBOL_INFO
+    # SYMBOL_SUCCESS ('✓') and SYMBOL_THINKING ('🤖') are often single-width
+}
+
+def get_visual_length(text):
+    """Calculate the visual length of a string, accounting for double-width symbols."""
+    length = 0
+    for char in text:
+        if char in DOUBLE_WIDTH_SYMBOLS:
+            length += 2
+        else:
+            length += 1
+    return length
+
 # Helper function to pretty-print JSON strings
 def pretty_print_json_string(data_string, color):
     try:
@@ -119,29 +136,12 @@ def pretty_print_json_string(data_string, color):
     except TypeError: # Handles cases where data_string might not be a string initially
         print(f"{color}{str(data_string)}{COLOR_RESET}")
 
-def print_section_header(title, color=COLOR_CYAN, symbol="", width=50):
-    """Print a nicely formatted section header with enhanced aesthetics"""
-    header_text = f"{symbol} {title}" if symbol else title
-    
-    # Use fixed width for consistency across all headers
-    actual_width = width
-    
-    # Build the box lines
-    top_line = f"{BOX_TOP_LEFT}{BOX_HORIZONTAL * (actual_width-2)}{BOX_TOP_RIGHT}"
-    bottom_line = f"{BOX_BOTTOM_LEFT}{BOX_HORIZONTAL * (actual_width-2)}{BOX_BOTTOM_RIGHT}"
-    
-    # Calculate spacing for middle line
-    # -3 for: left |, space after |, and right |
-    text_space = actual_width - 3
-    padding_needed = text_space - len(header_text)
-    
-    # Create the middle line with proper padding
-    middle_line = f"{BOX_VERTICAL} {header_text}{' ' * padding_needed}{BOX_VERTICAL}"
-    
-    # Print with background color that fills the entire width
-    print(f"{color}{top_line}{COLOR_RESET}")
-    print(f"{color}{middle_line}{COLOR_RESET}")
-    print(f"{color}{bottom_line}{COLOR_RESET}")
+def print_section_header(title, width=50):
+    """Print a nicely formatted section header with consistent styling"""
+    # Use grey background with cyan borders and white text, matching the banner style
+    print(f"{COLOR_BG_DARK}{COLOR_CYAN}{'=' * width}{COLOR_RESET}")
+    print(f"{COLOR_BG_DARK}{COLOR_BOLD}{COLOR_WHITE}{title:^{width}}{COLOR_RESET}")
+    print(f"{COLOR_BG_DARK}{COLOR_CYAN}{'=' * width}{COLOR_RESET}")
 
 def print_status_message(message, status_type="info", show_time=True):
     """Print a status message with appropriate symbol and color"""
@@ -181,7 +181,7 @@ def print_loading_animation(message="Processing", duration=1.0):
 
 def format_tool_response(tool_name, response_data, show_preview=True, max_preview_lines=5):
     """Format tool responses with better visual hierarchy"""
-    print_section_header(f"Tool Response: {tool_name}", COLOR_CYAN, SYMBOL_TOOL, width=50)
+    print_section_header(f"Tool Response: {tool_name}", width=50)
     
     if show_preview and isinstance(response_data, (dict, list)):
         # Show a preview of large responses
@@ -251,7 +251,7 @@ class ConversationStats:
         duration = self.get_session_duration()
         avg_response = self.get_avg_response_time()
         
-        print_section_header("Session Summary", COLOR_MAGENTA, "📊", width=50)
+        print_section_header("Session Summary", width=50)
         print(f"{COLOR_CYAN}  Duration: {duration/60:.1f} minutes{COLOR_RESET}")
         print(f"{COLOR_CYAN}  Messages: {self.message_count}{COLOR_RESET}")
         print(f"{COLOR_CYAN}  Total tokens: {self.total_tokens:,}{COLOR_RESET}")

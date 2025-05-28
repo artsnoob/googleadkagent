@@ -55,20 +55,20 @@ async def async_main():
     if not os.getenv("OPENROUTER_API_KEY"):
       print(f"{COLOR_YELLOW}Warning: --llm_provider is 'openrouter' but OPENROUTER_API_KEY is not set in .env. LiteLLM might fail.{COLOR_RESET}")
     model_config_to_use = LiteLlm(model=args.model_name)
-    print_status_message(f"Using OpenRouter model: {args.model_name}", "info")
+    print_status_message(f"Using OpenRouter model: {args.model_name}", "success", show_time=False)
   else: # Default to Gemini
     model_config_to_use = args.model_name
-    print_status_message(f"Using Gemini model: {args.model_name}", "info")
+    print_status_message(f"Using Gemini model: {args.model_name}", "success", show_time=False)
 
   # Initialize token manager with appropriate context window
   # Gemini 1.5 models have large context windows, adjust as needed
   max_tokens = 1000000 if "1.5" in args.model_name else 120000
   token_manager = TokenManager(model_name=args.model_name, max_context_tokens=max_tokens)
-  print_status_message(f"Token manager initialized with {max_tokens:,} max context tokens", "success")
+  print_status_message(f"Token manager initialized with {max_tokens:,} max context tokens", "success", show_time=False)
   
   # Initialize error recovery system
   error_recovery = ErrorRecoverySystem()
-  print_status_message("Error recovery system initialized", "success")
+  print_status_message("Error recovery system initialized", "success", show_time=False)
 
   session_service = InMemorySessionService()
   # Artifact service might not be needed for this example
@@ -98,8 +98,8 @@ async def async_main():
     )
 
     print()  # Add blank line for separation between initialized servers and interactive mode
-    print_section_header("Google ADK Agent - Interactive Mode", COLOR_GREEN, SYMBOL_THINKING, width=50)
-    print_status_message("Agent ready! Type 'exit' to quit.", "success")
+    print_section_header("Google ADK Agent - Interactive Mode", width=50)
+    print_status_message("Agent ready! Type 'exit' to quit.", "success", show_time=False)
     print() # Add blank line for separation
     
     conversation_history = []

@@ -15,12 +15,12 @@ async def initialize_mcp_server(server_name: str, init_func, error_recovery: Err
     try:
         server_instance = init_func()
         exit_stack.push_async_callback(lambda: server_instance.close())
-        print_status_message(f"{server_name} initialized successfully", "success")
+        print_status_message(f"{server_name} initialized successfully", "success", show_time=False)
         return server_instance
     except Exception as e:
         context = create_failure_context(e, tool_name=server_name, user_intent="initialize_mcp_server")
         fallback_result = await error_recovery.handle_failure(context)
-        print_status_message(f"{server_name} failed to initialize: {fallback_result.user_message}", "warning")
+        print_status_message(f"{server_name} failed to initialize: {fallback_result.user_message}", "warning", show_time=False)
         return None
 
 
