@@ -3,3 +3,4 @@ google-adk
 litellm
 requests
 beautifulsoup4
+tiktoken

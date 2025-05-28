@@ -87,9 +87,11 @@ Added streamlined workflow patterns:
 ## Implementation Details
 
 ### Files Modified:
-- `mcp_agent.py` - Complete agent instruction overhaul
+- `mcp_agent.py` - Complete agent instruction overhaul + token management integration
 - `agent_improvements.md` - Analysis and recommendations document
 - `implementation_summary.md` - This summary document
+- `token_manager.py` - New token counting and context management system
+- `requirements.txt` - Added tiktoken dependency
 
 ### Code Changes Summary:
 - **Root agent instruction**: Reduced from 248 to 30 lines
@@ -97,15 +99,18 @@ Added streamlined workflow patterns:
 - **Fallback mechanism**: Implicit through "write custom code when needed" directive
 - **Error recovery**: Built into all agent instructions
 - **Proactive behavior**: Emphasized across all agents
+- **Token management**: Comprehensive system preventing context overflow errors
+- **Input processing**: Smart chunking and conversation history management
 
 ## Key Features Achieved
 
 ### ✅ Agentic Capabilities:
 1. **Dynamic Problem Solving**: Writes custom scripts when no tool fits
 2. **Proactive Assistance**: Suggests improvements and next steps
-3. **Error Resilience**: Tries alternatives when things fail
+3. **Advanced Error Resilience**: Multi-layered fallback strategies with automatic recovery
 4. **Creative Solutions**: Combines tools and code creatively
 5. **Workflow Optimization**: Coordinates multi-agent tasks efficiently
+6. **Adaptive Learning**: Learns from failures and improves recovery strategies
 
 ### ✅ User Experience Improvements:
 1. **Solution-Focused**: Always finds a way to help
@@ -167,6 +172,135 @@ adk web
 - **Proactive Assistance**: Anticipates needs and suggests improvements
 - **Error Resilience**: Recovers from failures automatically
 - **Creative Problem Solving**: Finds innovative solutions to unique challenges
+
+## Recent Enhancements (Latest)
+
+### 4. Token Management and Context Window Optimization
+
+**Problem Solved**: Agent was hitting Google's "context too long" errors when processing large inputs or long conversations.
+
+**Implementation**: Added comprehensive token management system:
+
+#### New Files:
+- `token_manager.py` - Complete token counting and context management system
+
+#### Key Features:
+1. **Automatic Context Window Detection**: 
+   - 1M tokens for Gemini 1.5 models
+   - 120K tokens for other models
+   
+2. **Smart Input Chunking**:
+   - Splits oversized messages by paragraphs, then sentences
+   - Processes chunks sequentially with visual feedback
+   
+3. **Conversation History Truncation**:
+   - Preserves system prompt + most recent messages
+   - Automatically triggered when approaching token limits
+   
+4. **Real-time Token Monitoring**:
+   - Counts tokens for all inputs using tiktoken
+   - Shows colored warnings during management operations
+   
+5. **Safety Margins**:
+   - Reserves 2000 tokens for model responses
+   - Prevents hitting API limits
+
+#### Technical Implementation:
+```python
+# Token manager initialization with model-specific limits
+max_tokens = 1000000 if "1.5" in args.model_name else 120000
+token_manager = TokenManager(model_name=args.model_name, max_context_tokens=max_tokens)
+
+# Automatic chunking for large inputs
+if input_tokens > token_manager.max_context_tokens - token_manager.safety_margin:
+    chunks = token_manager.split_large_message(user_input)
+    # Process each chunk with context management
+```
+
+#### User Experience:
+- **Transparent**: Shows when chunking/truncating with colored messages
+- **Seamless**: No user action required, fully automatic
+- **Reliable**: Prevents all "context too long" API errors
+- **Efficient**: Smart truncation preserves conversation context
+
+#### Dependencies Added:
+- `tiktoken` - For accurate token counting
+
+**Result**: Agent now handles any size input or conversation length without API failures.
+
+### 5. Advanced Error Recovery System
+
+**Problem Solved**: Agent had limited error handling and would often give up when tools failed or encountered errors.
+
+**Implementation**: Added comprehensive multi-layered fallback system with automatic error recovery:
+
+#### New Files:
+- `error_recovery_system.py` - Complete error recovery and fallback management system
+
+#### Key Features:
+1. **Failure Classification System**:
+   - Automatically categorizes errors (network, rate limit, permission, timeout, etc.)
+   - Smart pattern matching for common error types
+   
+2. **Multi-Layered Fallback Strategies**:
+   - Retry with exponential backoff for transient failures
+   - Alternative tool selection when primary tools fail
+   - Custom script generation for missing capabilities
+   - Cross-agent coordination for complex failures
+   - Graceful degradation with helpful user guidance
+   
+3. **Tool-Specific Recovery Patterns**:
+   - Filesystem: Use code executor with os/shutil as fallback
+   - Web content: fetch_agent → search_agent → custom requests script
+   - Research: perplexity_agent → search_agent → manual approaches
+   - Code execution: Provide manual execution instructions
+   
+4. **Enhanced MCP Server Initialization**:
+   - Automatic retry mechanisms for server startup failures
+   - Graceful fallback when servers are unavailable
+   - Clear user feedback about service availability
+   
+5. **Learning and Adaptation**:
+   - Tracks strategy effectiveness over time
+   - Records failure patterns for pattern recognition
+   - Adapts fallback selection based on success rates
+
+#### Technical Implementation:
+```python
+# Error recovery integration in main agent loop
+error_recovery = ErrorRecoverySystem()
+
+# Enhanced MCP server initialization with fallback
+async def initialize_mcp_server(server_name, init_func):
+    try:
+        return init_func()
+    except Exception as e:
+        context = create_failure_context(e, tool_name=server_name)
+        fallback_result = await error_recovery.handle_failure(context)
+        # Provides alternative approaches or graceful degradation
+```
+
+#### Agent Instruction Enhancements:
+- **Root Agent**: Added comprehensive error recovery patterns and tool coordination strategies
+- **Specialized Agents**: Enhanced with specific fallback instructions for their domains
+- **Cross-Agent Workflows**: Improved coordination when primary tools fail
+
+#### User Experience:
+- **Transparent**: Clear explanations when failures occur and alternatives are being tried
+- **Resilient**: Always provides a path forward, never just "fails"
+- **Educational**: Teaches users about alternatives and manual approaches when needed
+- **Proactive**: Suggests preventive measures to avoid future failures
+
+#### Failure Types Handled:
+- Tool unavailability (server down, not installed)
+- Network connectivity issues
+- API rate limiting and quotas
+- Permission and authentication errors
+- Timeout and resource exhaustion
+- Invalid input formatting
+- Service degradation
+
+**Result**: Agent now gracefully handles all types of failures with multiple fallback strategies, ensuring users always get help even when primary tools fail.
 
 ## Future Enhancement Opportunities
 
