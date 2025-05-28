@@ -63,7 +63,7 @@ SYMBOL_SUCCESS = "✓"
 SYMBOL_ERROR = "✗"
 SYMBOL_WARNING = "⚠"
 SYMBOL_INFO = "ℹ"
-SYMBOL_THINKING = "🤔"
+SYMBOL_THINKING = "🤖"
 SYMBOL_TOOL = "🔧"
 SYMBOL_SEARCH = "🔍"
 SYMBOL_LOADING = "⏳"
@@ -103,7 +103,7 @@ def pretty_print_json_string(data_string, color):
     except TypeError: # Handles cases where data_string might not be a string initially
         print(f"{color}{str(data_string)}{COLOR_RESET}")
 
-def print_section_header(title, color=COLOR_CYAN, symbol="", width=60):
+def print_section_header(title, color=COLOR_CYAN, symbol="", width=45):
     """Print a nicely formatted section header"""
     timestamp = datetime.now().strftime("%H:%M:%S")
     header_text = f"{symbol} {title}" if symbol else title
