@@ -58,6 +58,14 @@ COLOR_RED = "\033[91m"
 COLOR_BOLD = "\033[1m"
 COLOR_DIM = "\033[2m"
 
+# Additional color definitions for enhanced UI
+COLOR_GRAY = "\033[90m"
+COLOR_WHITE = "\033[97m"
+COLOR_BG_DARK = "\033[48;5;236m"
+COLOR_BG_BLUE = "\033[48;5;24m"
+COLOR_BG_GREEN = "\033[48;5;22m"
+COLOR_BG_RESET = "\033[49m"
+
 # Unicode symbols for better visual feedback
 SYMBOL_SUCCESS = "✓"
 SYMBOL_ERROR = "✗"
@@ -70,13 +78,21 @@ SYMBOL_LOADING = "⏳"
 SYMBOL_STATS = "📊"
 
 # Box drawing characters for better formatting
-BOX_TOP_LEFT = "┌"
-BOX_TOP_RIGHT = "┐"
-BOX_BOTTOM_LEFT = "└"
-BOX_BOTTOM_RIGHT = "┘"
+BOX_TOP_LEFT = "╭"
+BOX_TOP_RIGHT = "╮"
+BOX_BOTTOM_LEFT = "╰"
+BOX_BOTTOM_RIGHT = "╯"
 BOX_HORIZONTAL = "─"
 BOX_VERTICAL = "│"
 BOX_CROSS = "┼"
+
+# Double box drawing for emphasis
+BOX_DOUBLE_HORIZONTAL = "═"
+BOX_DOUBLE_VERTICAL = "║"
+BOX_DOUBLE_TOP_LEFT = "╔"
+BOX_DOUBLE_TOP_RIGHT = "╗"
+BOX_DOUBLE_BOTTOM_LEFT = "╚"
+BOX_DOUBLE_BOTTOM_RIGHT = "╝"
 
 import time
 from datetime import datetime
@@ -103,18 +119,29 @@ def pretty_print_json_string(data_string, color):
     except TypeError: # Handles cases where data_string might not be a string initially
         print(f"{color}{str(data_string)}{COLOR_RESET}")
 
-def print_section_header(title, color=COLOR_CYAN, symbol="", width=45):
-    """Print a nicely formatted section header"""
-    timestamp = datetime.now().strftime("%H:%M:%S")
+def print_section_header(title, color=COLOR_CYAN, symbol="", width=50):
+    """Print a nicely formatted section header with enhanced aesthetics"""
     header_text = f"{symbol} {title}" if symbol else title
-    # Account for the space before header_text, timestamp, space before timestamp, and both vertical bars
-    content_width = len(header_text) + len(timestamp) + 3  # 1 space + header + 1 space + timestamp + 1 space
-    actual_width = max(width, content_width + 4)  # Ensure minimum width to fit content
-    padding = actual_width - content_width - 2  # -2 for the two vertical bars
     
-    print(f"{color}{BOX_TOP_LEFT}{BOX_HORIZONTAL * (actual_width-2)}{BOX_TOP_RIGHT}{COLOR_RESET}")
-    print(f"{color}{BOX_VERTICAL} {COLOR_BOLD}{header_text}{COLOR_RESET}{' ' * max(0, padding)}{COLOR_DIM}{timestamp} {color}{BOX_VERTICAL}{COLOR_RESET}")
-    print(f"{color}{BOX_BOTTOM_LEFT}{BOX_HORIZONTAL * (actual_width-2)}{BOX_BOTTOM_RIGHT}{COLOR_RESET}")
+    # Use fixed width for consistency across all headers
+    actual_width = width
+    
+    # Build the box lines
+    top_line = f"{BOX_TOP_LEFT}{BOX_HORIZONTAL * (actual_width-2)}{BOX_TOP_RIGHT}"
+    bottom_line = f"{BOX_BOTTOM_LEFT}{BOX_HORIZONTAL * (actual_width-2)}{BOX_BOTTOM_RIGHT}"
+    
+    # Calculate spacing for middle line
+    # -3 for: left |, space after |, and right |
+    text_space = actual_width - 3
+    padding_needed = text_space - len(header_text)
+    
+    # Create the middle line with proper padding
+    middle_line = f"{BOX_VERTICAL} {header_text}{' ' * padding_needed}{BOX_VERTICAL}"
+    
+    # Print with background color that fills the entire width
+    print(f"{color}{top_line}{COLOR_RESET}")
+    print(f"{color}{middle_line}{COLOR_RESET}")
+    print(f"{color}{bottom_line}{COLOR_RESET}")
 
 def print_status_message(message, status_type="info", show_time=True):
     """Print a status message with appropriate symbol and color"""
@@ -154,7 +181,7 @@ def print_loading_animation(message="Processing", duration=1.0):
 
 def format_tool_response(tool_name, response_data, show_preview=True, max_preview_lines=5):
     """Format tool responses with better visual hierarchy"""
-    print_section_header(f"Tool Response: {tool_name}", COLOR_CYAN, SYMBOL_TOOL)
+    print_section_header(f"Tool Response: {tool_name}", COLOR_CYAN, SYMBOL_TOOL, width=50)
     
     if show_preview and isinstance(response_data, (dict, list)):
         # Show a preview of large responses
@@ -186,7 +213,7 @@ def print_session_stats(token_usage=None, response_time=None, conversation_lengt
     
     if stats:
         stats_text = " | ".join(stats)
-        print(f"{COLOR_DIM}📊 {stats_text}{COLOR_RESET}")
+        print(f"{COLOR_DIM}{stats_text}{COLOR_RESET}")
 
 class ConversationStats:
     """Track conversation statistics"""
@@ -224,7 +251,7 @@ class ConversationStats:
         duration = self.get_session_duration()
         avg_response = self.get_avg_response_time()
         
-        print_section_header("Session Summary", COLOR_MAGENTA, "📊")
+        print_section_header("Session Summary", COLOR_MAGENTA, "📊", width=50)
         print(f"{COLOR_CYAN}  Duration: {duration/60:.1f} minutes{COLOR_RESET}")
         print(f"{COLOR_CYAN}  Messages: {self.message_count}{COLOR_RESET}")
         print(f"{COLOR_CYAN}  Total tokens: {self.total_tokens:,}{COLOR_RESET}")
@@ -233,3 +260,24 @@ class ConversationStats:
             print(f"{COLOR_CYAN}  Fastest response: {min(self.response_times):.1f}s{COLOR_RESET}")
             print(f"{COLOR_CYAN}  Slowest response: {max(self.response_times):.1f}s{COLOR_RESET}")
         print()
+
+def print_welcome_banner():
+    """Print an enhanced welcome banner with gradient effect"""
+    print(f"\n{COLOR_BG_DARK}{COLOR_CYAN}{'=' * 50}{COLOR_RESET}")
+    print(f"{COLOR_BG_DARK}{COLOR_BOLD}{COLOR_WHITE}{'Google ADK Multi-Agent System':^50}{COLOR_RESET}")
+    print(f"{COLOR_BG_DARK}{COLOR_DIM}{COLOR_CYAN}{'Powered by AI with MCP Integration':^50}{COLOR_RESET}")
+    print(f"{COLOR_BG_DARK}{COLOR_CYAN}{'=' * 50}{COLOR_RESET}\n")
+
+def print_gradient_line(width=50):
+    """Print a line with gradient-like effect"""
+    gradient_colors = [COLOR_BLUE, COLOR_CYAN, COLOR_GREEN, COLOR_YELLOW]
+    sections = len(gradient_colors)
+    section_width = width // sections
+    
+    line = ""
+    for i, color in enumerate(gradient_colors):
+        start_idx = i * section_width
+        end_idx = start_idx + section_width if i < sections - 1 else width
+        line += f"{color}{'─' * (end_idx - start_idx)}"
+    
+    print(f"{line}{COLOR_RESET}")

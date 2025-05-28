@@ -11,7 +11,8 @@ from google.genai import types
 # Import from our modular components
 from mcp_agent_utils import (
     COLOR_GREEN, COLOR_YELLOW, COLOR_RESET, SYMBOL_THINKING,
-    print_section_header, print_status_message, print_session_stats, ConversationStats
+    print_section_header, print_status_message, print_session_stats, 
+    print_welcome_banner, ConversationStats
 )
 from token_manager import TokenManager
 from error_recovery_system import ErrorRecoverySystem
@@ -77,6 +78,9 @@ async def async_main():
       state={}, app_name='mcp_filesystem_app', user_id='user_fs'
   )
 
+  # Print welcome banner
+  print_welcome_banner()
+  
   # Create an AsyncExitStack to manage the lifecycle of MCPToolset
   async with AsyncExitStack() as exit_stack:
     # Initialize all MCP servers
@@ -94,7 +98,7 @@ async def async_main():
     )
 
     print()  # Add blank line for separation between initialized servers and interactive mode
-    print_section_header("Google ADK Agent - Interactive Mode", COLOR_GREEN, SYMBOL_THINKING)
+    print_section_header("Google ADK Agent - Interactive Mode", COLOR_GREEN, SYMBOL_THINKING, width=50)
     print_status_message("Agent ready! Type 'exit' to quit.", "success")
     print() # Add blank line for separation
     
