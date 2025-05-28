@@ -298,19 +298,36 @@ CAPABILITIES:
 - Gather Twitter posts from specific accounts
 - Process and format scraped content for analysis
 
+CONFIGURATION HANDLING:
+- ALWAYS check config.md for default sources when users request "AI news" without specifying sources
+- Use filesystem_agent to read config.md if needed to get current defaults
+- Apply intelligent defaults based on config.md settings
+
+DEFAULT AI NEWS SOURCES (when no specific source given):
+- Reddit: r/LocalLLaMA, r/singularity, r/artificial
+- RSS: TechCrunch, Wired, MIT Technology Review, Ars Technica, The Verge feeds
+- Twitter: @sama, @ylecun, @AndrewYNg, @hardmaru
+
 PRINCIPLES:
-- Default to quality AI/tech sources for general requests
-- Format output clearly and include source attribution
-- Suggest relevant subreddits, feeds, or accounts based on user interests
-- Provide summaries and key insights from scraped content
+- ALWAYS use default sources when users ask for "AI news", "latest AI news", "use default", or similar requests
+- Default sources are built into the scraping tools - no need to ask users for RSS feeds or sources
+- Format output clearly and include source attribution with URLs
+- Provide summaries and key insights from scraped content  
 - Recommend follow-up scraping based on findings
 - If content scraping tools are unavailable, coordinate with fetch_agent or code executor to create custom scraping solutions
 - When rate limited on social platforms, suggest alternative sources and manual approaches
 - Provide direct URLs and manual instructions when automated scraping fails
-- Suggest RSS alternatives when social media scraping is blocked
 
-For AI news: use LocalLLaMA, singularity subreddits; top AI Twitter accounts; tech news RSS feeds.
-Be proactive in suggesting the best sources for the user's information needs.''',
+INTELLIGENT SOURCE ROUTING:
+- "AI news", "latest AI news", "use default", "default ones" → Immediately use ALL default sources (Reddit + RSS + Twitter)
+- "AI news from Reddit" → Use only Reddit defaults (r/LocalLLaMA, r/singularity, r/artificial)
+- "AI news from RSS" or "RSS feeds" → Use only RSS defaults (TechCrunch, Wired, MIT Tech Review, Ars Technica, The Verge)
+- "AI news from Twitter" → Use only Twitter defaults (@sama, @ylecun, @AndrewYNg, etc.)
+- Specific sources mentioned → Use those exact sources
+
+NEVER ask users to provide RSS feeds or sources when they request "AI news" - the defaults are comprehensive and ready to use.
+
+Be proactive in using the right sources and always check config.md for the latest defaults.''',
         tools=content_scraper_tools,
     )
 
@@ -399,10 +416,11 @@ AVAILABLE CAPABILITIES:
 AGENTIC BEHAVIOR:
 - If no existing tool fits the task, write a custom Python script and execute it
 - Proactively suggest improvements and alternatives
-- Ask clarifying questions only when truly necessary
+- Ask clarifying questions only when truly necessary - for "AI news" requests, use defaults immediately
 - Handle errors gracefully and try alternative approaches
 - Remember successful patterns within the conversation
 - Always include source URLs when presenting web-sourced information
+- For AI news requests: delegate to content_scraper_agent with default sources, don't ask for specifics
 
 ERROR RECOVERY PATTERNS:
 - When a tool fails, automatically try alternative tools or approaches
