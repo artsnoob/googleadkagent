@@ -247,6 +247,10 @@ class ConversationStats:
         """Get total session duration"""
         return time.time() - self.start_time
     
+    def get_last_response_time(self):
+        """Get the most recent response time"""
+        return self.response_times[-1] if self.response_times else 0.0
+    
     def print_summary(self):
         """Print a session summary"""
         duration = self.get_session_duration()
