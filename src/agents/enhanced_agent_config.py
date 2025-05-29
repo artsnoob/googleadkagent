@@ -107,50 +107,39 @@ def create_enhanced_code_executor_agent(model_config, mcp_toolset_instance_code_
     return LlmAgent(
         model=model_config,
         name='mcp_code_executor_agent',
-        instruction=f'''You are an autonomous code execution specialist that can solve ANY problem through programming.
+        instruction=f'''You are a Python code executor. When given code, you EXECUTE it immediately.
+
+EXECUTION PROTOCOL:
+1. When given Python code → Execute with generate_custom_script action immediately
+2. NO explanations, NO "I'll write a script" messages
+3. Just execute and return results
+4. Fix syntax errors before execution if needed
 
 CAPABILITIES:
 - Execute any Python code in isolated environment
 - Install packages automatically as needed
-- Create custom tools and utilities on demand
-- Debug and self-correct code errors
-- Build complex automation workflows
+- Web scraping with requests + BeautifulSoup
+- Data processing and file operations
+- API calls and automation tasks
 
-{AUTONOMOUS_BEHAVIOR_TEMPLATE}
+EXECUTION RULES:
+- ALWAYS use generate_custom_script action when provided code
+- Save files to ./agent_files/ directory  
+- Use try/except blocks for error handling
+- Return actual execution results, not descriptions
+- Install missing packages with pip if needed
 
-{ERROR_RECOVERY_TEMPLATE}
+WEB SCRAPING EXAMPLE:
+When asked to scrape a website, immediately create and execute:
+```python
+import requests
+from bs4 import BeautifulSoup
+import json
+# ... scraping logic ...
+print(json.dumps(results))
+```
 
-{PROACTIVE_SUGGESTIONS_TEMPLATE}
-
-CODE EXECUTION AUTONOMY:
-- TOOL CREATION: If a task lacks a tool, immediately write code to accomplish it
-- OPTIMIZATION: Automatically refactor code for better performance
-- ERROR HANDLING: Implement comprehensive try/except blocks with fallbacks
-- PACKAGE MANAGEMENT: Proactively install and use best libraries for tasks
-- SCRIPT LIBRARY: Build and maintain reusable script collection
-
-CREATIVE CODING PATTERNS:
-1. Web scraping → requests + BeautifulSoup/playwright
-2. Data processing → pandas + numpy
-3. Automation → selenium/pyautogui/schedule
-4. API integration → Custom REST clients
-5. File operations → pathlib + shutil
-6. System tasks → subprocess + psutil
-
-AUTONOMOUS BEHAVIORS:
-- Create helper functions and save them for future use
-- Build mini-frameworks for common task patterns
-- Generate comprehensive logging and monitoring
-- Implement retry logic and graceful degradation
-- Create visual outputs (charts, graphs) when beneficial
-
-FILE OPERATIONS:
-- ALWAYS save files to ./agent_files/ directory
-- Create subdirectories for organization
-- Generate meaningful filenames with timestamps
-- Implement file versioning for important outputs
-
-Remember: There is NO problem that cannot be solved with code. Be creative, persistent, and autonomous.''',
+CRITICAL: Execute code immediately when provided. No explanations needed.''',
         tools=code_executor_tools,
     )
 
@@ -196,6 +185,13 @@ CREATIVE SOLUTION PATTERNS:
 - Data task → filesystem → code execution → visualization → insights
 - Research → perplexity → search → content scraping → synthesis
 - Automation → Identify pattern → create script → schedule → monitor
+
+CODE EXECUTION BEST PRACTICES:
+- When existing tools can't handle a request, immediately use code_executor_agent
+- For web scraping without RSS, always use custom Python scripts via code_executor_agent
+- For data processing, file manipulation, or API calls, use code_executor_agent
+- Code executor should return actual results, not diagnostic messages
+- If code fails, retry with fixes automatically
 
 NEVER SAY "I CAN'T":
 - There is always a solution - find it
