@@ -4,16 +4,34 @@ Contains all MCP server setup and error handling logic.
 """
 
 import os
-from contextlib import AsyncExitStack
+import sys
+import io
+from contextlib import AsyncExitStack, contextmanager
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 from mcp_agent_utils import print_status_message, COLOR_YELLOW, COLOR_RESET
 from error_recovery_system import ErrorRecoverySystem, create_failure_context
 
 
+@contextmanager
+def suppress_output():
+    """Context manager to suppress stdout and stderr output"""
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    try:
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
+        yield
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+
+
 async def initialize_mcp_server(server_name: str, init_func, error_recovery: ErrorRecoverySystem, exit_stack: AsyncExitStack):
     """Helper function with enhanced error recovery for MCP server initialization"""
     try:
-        server_instance = init_func()
+        # Suppress output during initialization to hide unwanted messages
+        with suppress_output():
+            server_instance = init_func()
         exit_stack.push_async_callback(lambda: server_instance.close())
         print_status_message(f"{server_name} initialized successfully", "success", show_time=False)
         return server_instance

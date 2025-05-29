@@ -6,6 +6,7 @@ from datetime import datetime
 from google.genai import types # Import types for monkeypatching
 
 # --- Monkeypatch google.genai.types.Content.text to suppress warning ---
+# This suppresses the "Warning: there are non-text parts in the response: ['function_call']" message
 
 _original_content_text_property_getter = None # pylint: disable=invalid-name
 

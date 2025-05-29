@@ -13,6 +13,8 @@ import time
 import sys
 import termios
 import tty
+import logging
+import warnings
 
 # Import from our modular components
 from mcp_agent_utils import (
@@ -27,6 +29,19 @@ from mcp_server_init import initialize_all_mcp_servers
 from agent_config import create_all_agents
 from event_processor import process_events
 from conversation_logger import ConversationLogger
+
+# Suppress various warnings from Google ADK and MCP
+logging.getLogger('google.adk.tools.mcp_tool.mcp_session_manager').setLevel(logging.ERROR)
+logging.getLogger('mcp').setLevel(logging.ERROR)
+logging.getLogger('google.adk').setLevel(logging.ERROR)
+# Also suppress warnings from any stdio_client related modules
+logging.getLogger('mcp.client').setLevel(logging.ERROR)
+logging.getLogger('mcp.client.stdio').setLevel(logging.ERROR)
+# Suppress root logger warnings as well
+logging.getLogger().setLevel(logging.ERROR)
+
+# Also suppress Python warnings
+warnings.filterwarnings("ignore")
 
 # Define blue color for URL context metadata
 COLOR_BLUE = "\033[94m"
