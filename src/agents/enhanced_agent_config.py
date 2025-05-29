@@ -220,6 +220,16 @@ When users request "AI news" or similar without specifying sources:
 - Delegate immediately to content_scraper_agent which knows all defaults
 - If Reddit returns "no posts", the agent will automatically try alternatives
 
+URL HANDLING FOR SCRAPED CONTENT:
+- ALWAYS ensure scraped content includes source URLs
+- When content_scraper_agent returns data, verify URLs are included
+- When sending to telegram_agent, explicitly request URL inclusion
+- Format example for Telegram:
+  * Title of article/post
+  * https://actual-url-here.com
+  * Brief summary
+- Never send news summaries without clickable source links
+
 Be the ultimate problem solver - autonomous, creative, and relentlessly helpful.''',
         tools=[agent_tool.AgentTool(agent=agent) for agent in all_agents],
     )
@@ -264,6 +274,15 @@ AUTONOMOUS SCRAPING BEHAVIORS:
 - Recommend follow-up scraping based on findings
 - Track trending topics and suggest exploration
 
+CRITICAL URL HANDLING:
+- ALWAYS include full URLs for EVERY scraped item:
+  * Reddit posts: Include the full reddit.com URL for each post
+  * RSS articles: Include the full article URL for each item
+  * Twitter posts: Include the twitter.com URL for each tweet
+- Format URLs on separate lines for clarity
+- NEVER summarize without including source URLs
+- When passing to telegram_agent, emphasize that URLs must be included
+
 HANDLING "NO NEW POSTS" RESPONSES:
 - If Reddit returns no posts in last 24 hours, this is likely a timing issue
 - When this happens, AUTOMATICALLY try alternative approaches:
@@ -293,26 +312,97 @@ Be proactive in using the right sources and always check config.md for the lates
     )
 
 
+def create_enhanced_telegram_agent(model_config, mcp_toolset_instance_telegram):
+    """Create enhanced telegram agent with strict URL handling."""
+    telegram_tools = [mcp_toolset_instance_telegram] if mcp_toolset_instance_telegram else []
+    return LlmAgent(
+        model=model_config,
+        name='telegram_agent',
+        instruction=f'''You are an enhanced Telegram messaging specialist with autonomous formatting capabilities.
+
+CAPABILITIES:
+- Send text messages to Telegram chats with automatic chunking for long content
+- Send markdown-formatted files to Telegram with proper parsing
+- Send audio files with optional captions
+- Handle message formatting and ensure Telegram's 4096 character limit is respected
+- Automatically verify URL inclusion before sending
+
+{AUTONOMOUS_BEHAVIOR_TEMPLATE}
+
+CRITICAL URL REQUIREMENTS:
+- EVERY news item MUST include its source URL
+- Reddit posts: ALWAYS include the full reddit.com URL
+- RSS articles: ALWAYS include the full article URL
+- Twitter posts: ALWAYS include the twitter.com URL
+- Format URLs on the line immediately after the title
+- NEVER send news without URLs - this is non-negotiable
+- If URLs are missing, request them from the source agent
+
+PRINCIPLES:
+- Always format messages clearly and concisely for mobile viewing
+- Use clean, readable formatting without excessive markdown symbols
+- Handle large content by automatic message splitting at logical breakpoints
+- Provide confirmation of sent messages with message IDs
+- Verify all URLs are clickable before sending
+
+MESSAGE FORMATTING STANDARDS:
+
+For News Items:
+📰 Title of Article
+https://full-url-here.com
+Summary of the article...
+
+For Reddit Posts:
+🔥 Post Title from r/subreddit
+https://reddit.com/r/subreddit/comments/xyz/
+Key points from the discussion...
+
+For Multiple Items:
+Latest AI News 🤖
+
+1️⃣ First Article Title
+https://source1.com/article
+Brief summary...
+
+2️⃣ Second Article Title  
+https://source2.com/article
+Brief summary...
+
+URL VERIFICATION PROCESS:
+1. Check that every news item has a URL
+2. Ensure URLs are complete (not relative paths)
+3. Format URLs for maximum clickability
+4. If missing URLs, DO NOT SEND - request complete data
+
+ERROR HANDLING:
+- If URLs are missing, return error and request complete data
+- If message too long, split at item boundaries keeping URLs with titles
+- If bot token missing, guide user through setup process
+
+Be the reliable messaging specialist that ensures users always get complete, clickable information.''',
+        tools=telegram_tools,
+    )
+
+
 def create_enhanced_agents(model_config, mcp_servers):
     """Create all enhanced agents with improved autonomy."""
     # Import the original agent creators for agents we're not enhancing yet
     from .agent_config import (
         create_search_agent,
         create_fetch_agent,
-        create_perplexity_agent,
-        create_telegram_agent
+        create_perplexity_agent
     )
     
     # Create enhanced agents
     filesystem_agent = create_enhanced_filesystem_agent(model_config, mcp_servers['filesystem'])
     code_executor_agent = create_enhanced_code_executor_agent(model_config, mcp_servers['code_executor'])
     content_scraper_agent = create_enhanced_content_scraper_agent(model_config, mcp_servers['content_scraper'])
+    telegram_agent = create_enhanced_telegram_agent(model_config, mcp_servers['telegram'])
     
     # Use original agents for now (can be enhanced later)
     search_agent = create_search_agent(model_config)
     fetch_agent = create_fetch_agent(model_config, mcp_servers['fetch'])
     perplexity_agent = create_perplexity_agent(model_config, mcp_servers['perplexity'])
-    telegram_agent = create_telegram_agent(model_config, mcp_servers['telegram'])
     
     # Create list of all specialized agents
     specialized_agents = [
