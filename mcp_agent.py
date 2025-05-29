@@ -171,33 +171,83 @@ async def async_main():
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return char
     
+    # Track if suggestions are currently displayed and previous input
+    suggestions_displayed = False
+    last_slash_input = ""
+    
+    def clear_suggestions():
+        """Clear the command suggestions display"""
+        nonlocal suggestions_displayed
+        if suggestions_displayed:
+            # Save cursor position
+            print('\033[s', end='')
+            # Move down to start of suggestions
+            print(f"\033[{1}B", end='')
+            # Clear each suggestion line
+            for _ in range(len(SLASH_COMMANDS)+1):
+                print('\033[2K')  # Clear entire line
+            # Restore cursor position
+            print('\033[u', end='')
+            suggestions_displayed = False
+            sys.stdout.flush()
+    
     def show_command_suggestions(current_input):
         """Show command suggestions when user types '/'"""
+        nonlocal suggestions_displayed, last_slash_input
+        
+        # Handle empty input (all backspaced)
+        if not current_input:
+            clear_suggestions()
+            sys.stdout.write('\r' + ' ' * 80 + '\r' + "You: ")
+            sys.stdout.flush()
+            last_slash_input = ""
+            return
+        
         if current_input.startswith('/'):
-            # Clear current line and show suggestions
+            # Clear current line
             sys.stdout.write('\r' + ' ' * 80 + '\r')
             sys.stdout.write(f"You: {current_input}")
             
-            if current_input == '/':
-                # Show all commands below the input line
+            if current_input == '/' and last_slash_input != '/':
+                # First time showing all commands
+                clear_suggestions()  # Clear any existing suggestions first
                 print(f"\n{COLOR_DIM}Available commands:{COLOR_RESET}")
                 for cmd, desc in SLASH_COMMANDS.items():
                     print(f"  {COLOR_CYAN}{cmd}{COLOR_RESET} - {COLOR_DIM}{desc}{COLOR_RESET}")
                 # Return cursor to input line
                 print(f"\033[{len(SLASH_COMMANDS)+2}A", end='')  # Move cursor up
                 sys.stdout.write(f"\rYou: {current_input}")
-            else:
-                # Show matching commands inline
-                matches = [cmd for cmd in SLASH_COMMANDS.keys() if cmd.startswith(current_input)]
-                if matches:
-                    suggestions = ' | '.join(matches)
-                    sys.stdout.write(f" {COLOR_DIM}({suggestions}){COLOR_RESET}")
+                suggestions_displayed = True
+            elif current_input != '/' and (last_slash_input == '/' or suggestions_displayed):
+                # Moving from '/' to more specific input
+                clear_suggestions()
+                sys.stdout.write('\r' + ' ' * 80 + '\r')
+                sys.stdout.write(f"You: {current_input}")
+                
+                # Show matching commands inline only if not an exact match
+                if current_input not in SLASH_COMMANDS:
+                    matches = [cmd for cmd in SLASH_COMMANDS.keys() if cmd.startswith(current_input) and cmd != current_input]
+                    if matches:
+                        suggestions = ' | '.join(matches)
+                        sys.stdout.write(f" {COLOR_DIM}({suggestions}){COLOR_RESET}")
+            elif current_input != '/' and not suggestions_displayed:
+                # Just show inline suggestions
+                if current_input not in SLASH_COMMANDS:
+                    matches = [cmd for cmd in SLASH_COMMANDS.keys() if cmd.startswith(current_input) and cmd != current_input]
+                    if matches:
+                        suggestions = ' | '.join(matches)
+                        sys.stdout.write(f" {COLOR_DIM}({suggestions}){COLOR_RESET}")
             
+            last_slash_input = current_input
             sys.stdout.flush()
+        else:
+            last_slash_input = ""
     
     while True:
       # Enhanced input handling with command suggestions
       user_input = ""
+      suggestions_displayed = False  # Reset for each new input
+      last_slash_input = ""  # Reset for each new input
       sys.stdout.write("You: ")
       sys.stdout.flush()
       
@@ -206,21 +256,19 @@ async def async_main():
         char = get_char()
         
         if ord(char) == 13:  # Enter key
+          # Clear any command suggestions before printing newline
+          clear_suggestions()
           print()  # New line
-          # Clear any command suggestions
-          if user_input.startswith('/') and user_input == '/':
-            for _ in range(len(SLASH_COMMANDS)+2):
-              print()  # Clear suggestion lines
           break
         elif ord(char) == 127 or ord(char) == 8:  # Backspace
           if user_input:
             user_input = user_input[:-1]
-            sys.stdout.write('\b \b')
-            sys.stdout.flush()
-            if user_input.startswith('/'):
+            if user_input.startswith('/') or len(user_input) == 0:
               show_command_suggestions(user_input)
-            elif not user_input:
-              sys.stdout.write('\r' + ' ' * 80 + '\r' + "You: ")
+            else:
+              # Clear suggestions if we backspaced out of a slash command
+              clear_suggestions()
+              sys.stdout.write('\r' + ' ' * 80 + '\r' + f"You: {user_input}")
               sys.stdout.flush()
         elif ord(char) == 3:  # Ctrl+C
           print("\nExiting...")
