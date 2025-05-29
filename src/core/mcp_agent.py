@@ -125,8 +125,13 @@ async def async_main():
     print_status_message(f"Using Gemini model: {args.model_name}", "success", show_time=False)
 
   # Initialize token manager with appropriate context window
-  # Gemini 1.5 models have large context windows, adjust as needed
-  max_tokens = 1000000 if "1.5" in args.model_name else 120000
+  # Gemini 1.5 and 2.x models have large context windows
+  # Check for both 1.5 and 2.x models (2.0, 2.5, etc.)
+  if "1.5" in args.model_name or "2." in args.model_name:
+    max_tokens = 1000000  # 1M context window for newer Gemini models
+  else:
+    max_tokens = 120000  # 120K for older models or other providers
+  
   token_manager = TokenManager(model_name=args.model_name, max_context_tokens=max_tokens)
   print_status_message(f"Token manager initialized with {max_tokens:,} max context tokens", "success", show_time=False)
   

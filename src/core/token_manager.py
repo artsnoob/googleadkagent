@@ -13,6 +13,8 @@ class TokenManager:
         Args:
             model_name: Model name for tiktoken encoding (fallback to gpt-4 for Gemini)
             max_context_tokens: Maximum context window size
+                - Gemini 1.5 and 2.x models: 1,000,000 tokens
+                - Other models: 120,000 tokens
         """
         # Use gpt-4 encoding as fallback for Gemini models since tiktoken doesn't support them directly
         try:

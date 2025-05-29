@@ -11,6 +11,7 @@ from ..utils.mcp_agent_utils import (
     ConversationStats
 )
 from ..core.error_recovery_system import ErrorRecoverySystem, create_failure_context
+from ..utils.telegram_formatter import markdown_to_plain_text
 
 
 async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None):
@@ -29,8 +30,10 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                 for part in event.content.parts:
                     if part.text:
                         print_section_header("Agent Response", width=50)
+                        # Remove markdown formatting for better CLI readability
+                        clean_text = markdown_to_plain_text(part.text)
                         # Print each line of multi-line text with color
-                        for line in part.text.splitlines():
+                        for line in clean_text.splitlines():
                             print(f"{COLOR_GREEN}{line}{COLOR_RESET}")
                         print() # Add blank line for separation
                         has_printed_content = True
