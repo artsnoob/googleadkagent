@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Start the interactive command-line agent:
 ```bash
-python mcp_agent.py
+python main.py
 ```
 
 With specific model configuration:
 ```bash
-python mcp_agent.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
-python mcp_agent.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
+python main.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
+python main.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
 ```
 
 Note: OpenRouter requires `OPENROUTER_API_KEY` in `.env`. Perplexity features require `PERPLEXITY_API_KEY`.
@@ -28,7 +28,7 @@ Required environment variables in `.env`:
 
 Install dependencies:
 ```bash
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 ```
 
 ## Architecture Overview
@@ -36,8 +36,8 @@ pip install -r requirements.txt
 This is a **modular multi-agent system** built on Google ADK with the following design:
 
 ### Agent Hierarchy
-- **Root Agent** (`mcp_agent.py`) - Orchestrates and delegates to specialized agents
-- **Specialized Agents** (`agent_config.py`) - Each handles specific domains:
+- **Root Agent** (`src/core/mcp_agent.py`) - Orchestrates and delegates to specialized agents
+- **Specialized Agents** (`src/agents/agent_config.py`) - Each handles specific domains:
   - Filesystem operations
   - Web search and research  
   - Python code execution
@@ -46,12 +46,13 @@ This is a **modular multi-agent system** built on Google ADK with the following 
   - Deep research via Perplexity
 
 ### Core Components
-- **`mcp_agent.py`** - Main entry point, conversation loop, model configuration
-- **`agent_config.py`** - Agent creation and instruction definitions
-- **`mcp_server_init.py`** - MCP server lifecycle management with error recovery
-- **`event_processor.py`** - Response handling, grounding metadata display
-- **`token_manager.py`** - Context window management and conversation truncation
-- **`error_recovery_system.py`** - Automatic fallback strategies for tool failures
+- **`main.py`** - Entry point script
+- **`src/core/mcp_agent.py`** - Main conversation loop, model configuration
+- **`src/agents/agent_config.py`** - Agent creation and instruction definitions
+- **`src/mcp/mcp_server_init.py`** - MCP server lifecycle management with error recovery
+- **`src/processors/event_processor.py`** - Response handling, grounding metadata display
+- **`src/core/token_manager.py`** - Context window management and conversation truncation
+- **`src/core/error_recovery_system.py`** - Automatic fallback strategies for tool failures
 
 ### MCP Server Dependencies
 The system relies on external Node.js MCP servers that must be available:
@@ -70,7 +71,7 @@ The system relies on external Node.js MCP servers that must be available:
 5. Error recovery system handles tool failures with automatic fallbacks
 
 ### File Operations
-All agent file operations target the `agent_files/` directory, which serves as the shared workspace between the filesystem MCP server and code executor.
+All agent file operations target the `data/agent_files/` directory, which serves as the shared workspace between the filesystem MCP server and code executor.
 
 ### Multi-Model Support
 - Default: Gemini models with configurable context windows (120k-1M tokens)
@@ -80,8 +81,8 @@ All agent file operations target the `agent_files/` directory, which serves as t
 ## Key Development Patterns
 
 When extending the system:
-- Add new agents in `agent_config.py` following the existing pattern
-- MCP servers are initialized in `mcp_server_init.py` with automatic error recovery
+- Add new agents in `src/agents/agent_config.py` following the existing pattern
+- MCP servers are initialized in `src/mcp/mcp_server_init.py` with automatic error recovery
 - All agents include comprehensive fallback instructions for when their tools fail
 - Use the error recovery system for graceful degradation
 - Agent instructions emphasize proactive behavior and cross-agent coordination

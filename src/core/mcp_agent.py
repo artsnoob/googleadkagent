@@ -17,18 +17,18 @@ import logging
 import warnings
 
 # Import from our modular components
-from mcp_agent_utils import (
+from ..utils.mcp_agent_utils import (
     COLOR_GREEN, COLOR_YELLOW, COLOR_RESET, COLOR_CYAN, COLOR_DIM, COLOR_BOLD,
     SYMBOL_THINKING, SYMBOL_LOADING,
     print_section_header, print_status_message, print_session_stats, 
     print_welcome_banner, ConversationStats
 )
-from token_manager import TokenManager
-from error_recovery_system import ErrorRecoverySystem
-from mcp_server_init import initialize_all_mcp_servers
-from agent_config import create_all_agents
-from event_processor import process_events
-from conversation_logger import ConversationLogger
+from .token_manager import TokenManager
+from .error_recovery_system import ErrorRecoverySystem
+from ..mcp.mcp_server_init import initialize_all_mcp_servers
+from ..agents.agent_config import create_all_agents
+from ..processors.event_processor import process_events
+from ..processors.conversation_logger import ConversationLogger
 
 # Suppress various warnings from Google ADK and MCP
 logging.getLogger('google.adk.tools.mcp_tool.mcp_session_manager').setLevel(logging.ERROR)

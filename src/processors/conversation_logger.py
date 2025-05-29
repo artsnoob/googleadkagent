@@ -80,7 +80,7 @@ class ConversationLogger:
             filename = f"conversation_{timestamp}.md"
             
         # Ensure the exports directory exists
-        export_dir = os.path.join(os.path.dirname(__file__), "conversation_exports")
+        export_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "conversation_exports")
         os.makedirs(export_dir, exist_ok=True)
         filepath = os.path.join(export_dir, filename)
         

@@ -3,14 +3,14 @@ Event processing module for MCP Agent system.
 Contains all event handling and response processing logic.
 """
 
-from mcp_agent_utils import (
+from ..utils.mcp_agent_utils import (
     COLOR_GREEN, COLOR_YELLOW, COLOR_CYAN, COLOR_MAGENTA, COLOR_RESET,
     COLOR_BLUE, COLOR_DIM, SYMBOL_SUCCESS, SYMBOL_WARNING, SYMBOL_THINKING,
     SYMBOL_TOOL, SYMBOL_SEARCH, SYMBOL_INFO, pretty_print_json_string,
     print_section_header, print_status_message, format_tool_response,
     ConversationStats
 )
-from error_recovery_system import ErrorRecoverySystem, create_failure_context
+from ..core.error_recovery_system import ErrorRecoverySystem, create_failure_context
 
 
 async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None):

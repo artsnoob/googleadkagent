@@ -3,10 +3,54 @@
 ## Overview
 A modular multi-agent system built with Google ADK that provides file operations, web search, code execution, content scraping, and AI research capabilities through specialized agents.
 
+## Directory Layout
+
+```
+googleadkagent/
+├── main.py                       # Entry point for the application
+├── src/                          # Main source code
+│   ├── core/                     # Core system components
+│   │   ├── __init__.py
+│   │   ├── mcp_agent.py         # Main conversation loop and orchestration
+│   │   ├── token_manager.py     # Context window management
+│   │   └── error_recovery_system.py # Fallback strategies for tool failures
+│   ├── agents/                   # Agent configuration and logic
+│   │   ├── __init__.py
+│   │   └── agent_config.py      # All agent definitions and instructions
+│   ├── mcp/                      # MCP server management
+│   │   ├── __init__.py
+│   │   └── mcp_server_init.py   # MCP server initialization and lifecycle
+│   ├── processors/               # Event and data processing
+│   │   ├── __init__.py
+│   │   ├── event_processor.py   # Response handling and metadata display
+│   │   └── conversation_logger.py # Conversation history tracking
+│   ├── utils/                    # Utilities and formatters
+│   │   ├── __init__.py
+│   │   ├── mcp_agent_utils.py   # UI utilities and formatting helpers
+│   │   └── telegram_formatter.py # Telegram message formatting
+│   └── __init__.py
+├── data/                         # Data and working files
+│   ├── agent_files/             # Agent working directory for file operations
+│   └── conversation_exports/    # Exported conversation logs
+├── docs/                         # All documentation
+│   ├── README.md                # Main project documentation
+│   ├── PROJECT_STRUCTURE.md     # This file
+│   ├── adk_docs.md              # Google ADK documentation
+│   ├── config.md                # Configuration guide
+│   └── agent_development_status.md # Development progress tracking
+├── config/                       # Configuration files
+│   ├── CLAUDE.md                # Claude Code instructions
+│   └── requirements.txt         # Python dependencies
+├── venv/                         # Virtual environment (not tracked in git)
+├── error.md                     # Error documentation
+└── restructure.md               # Restructuring plan (can be removed)
+```
+
 ## Core Architecture
 
 ### Main Entry Point
-- **`mcp_agent.py`** (169 lines) - Main orchestrator
+- **`main.py`** - Simple entry point that imports and runs the main function
+- **`src/core/mcp_agent.py`** - Main orchestrator
   - Argument parsing for model selection
   - Token management initialization
   - Error recovery system setup
@@ -16,7 +60,7 @@ A modular multi-agent system built with Google ADK that provides file operations
 ### Modular Components
 
 #### Agent Configuration
-- **`agent_config.py`** - Agent creation and configuration
+- **`src/agents/agent_config.py`** - Agent creation and configuration
   - `create_filesystem_agent()` - File operations specialist
   - `create_search_agent()` - Web search and research
   - `create_code_executor_agent()` - Python code execution
@@ -27,7 +71,7 @@ A modular multi-agent system built with Google ADK that provides file operations
   - `create_all_agents()` - Factory function for all agents
 
 #### MCP Server Management
-- **`mcp_server_init.py`** - MCP server initialization
+- **`src/mcp/mcp_server_init.py`** - MCP server initialization
   - `initialize_mcp_server()` - Generic server setup with error recovery
   - `initialize_all_mcp_servers()` - Sets up all MCP servers:
     - Filesystem server (npx @modelcontextprotocol/server-filesystem)
@@ -37,7 +81,7 @@ A modular multi-agent system built with Google ADK that provides file operations
     - Perplexity server (custom Node.js MCP server)
 
 #### Event Processing
-- **`event_processor.py`** - Response handling and display
+- **`src/processors/event_processor.py`** - Response handling and display
   - `process_events()` - Processes agent responses with error recovery
   - Handles text responses, function calls, and grounding metadata
   - Displays web search queries, sources, and URL context
@@ -46,7 +90,7 @@ A modular multi-agent system built with Google ADK that provides file operations
 ### Supporting Modules
 
 #### Utilities and Display
-- **`mcp_agent_utils.py`** - UI utilities and formatting
+- **`src/utils/mcp_agent_utils.py`** - UI utilities and formatting
   - Color constants and symbols
   - Pretty printing functions
   - Status messages and section headers
@@ -55,30 +99,32 @@ A modular multi-agent system built with Google ADK that provides file operations
   - GenAI content text patching
 
 #### System Management
-- **`token_manager.py`** - Context window management
+- **`src/core/token_manager.py`** - Context window management
   - Token counting and tracking
   - Conversation history truncation
   - Large message splitting
   - Model-specific token limits
 
-- **`error_recovery_system.py`** - Error handling and recovery
+- **`src/core/error_recovery_system.py`** - Error handling and recovery
   - Failure context creation
   - Recovery strategy suggestions
   - Graceful degradation patterns
   - Tool failure handling
 
 ### Configuration and Documentation
-- **`config.md`** - Default sources for content scraping
-- **`requirements.txt`** - Python dependencies
-- **`agent_development_status.md`** - Development progress tracking
-- **`adk_docs.md`** - ADK-specific documentation
-- **`README.md`** - Project overview and setup instructions
+- **`docs/config.md`** - Default sources for content scraping
+- **`config/requirements.txt`** - Python dependencies
+- **`docs/agent_development_status.md`** - Development progress tracking
+- **`docs/adk_docs.md`** - ADK-specific documentation
+- **`docs/README.md`** - Project overview and setup instructions
+- **`config/CLAUDE.md`** - Claude Code instructions
 
 ### Data Directory
-- **`agent_files/`** - Working directory for agent file operations
+- **`data/agent_files/`** - Working directory for agent file operations
   - All file creation, reading, and processing happens here
   - Shared between filesystem MCP and code executor
   - User-accessible file storage
+- **`data/conversation_exports/`** - Exported conversation logs
 
 ### Environment
 - **`venv/`** - Python virtual environment
@@ -178,8 +224,8 @@ A modular multi-agent system built with Google ADK that provides file operations
 
 ### Command Line Options
 ```bash
-python mcp_agent.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
-python mcp_agent.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
+python main.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
+python main.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
 ```
 
 This modular architecture ensures maintainability, scalability, and clear separation of concerns while providing a powerful multi-agent AI assistant system.

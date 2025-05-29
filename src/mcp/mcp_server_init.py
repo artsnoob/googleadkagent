@@ -8,8 +8,8 @@ import sys
 import io
 from contextlib import AsyncExitStack, contextmanager
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
-from mcp_agent_utils import print_status_message, COLOR_YELLOW, COLOR_RESET
-from error_recovery_system import ErrorRecoverySystem, create_failure_context
+from ..utils.mcp_agent_utils import print_status_message, COLOR_YELLOW, COLOR_RESET
+from ..core.error_recovery_system import ErrorRecoverySystem, create_failure_context
 
 
 @contextmanager
@@ -52,7 +52,7 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             connection_params=StdioServerParameters(
                 command='npx',
                 args=["-y", "@modelcontextprotocol/server-filesystem",
-                      "/Users/milanboonstra/code/googleadkagent/agent_files"],
+                      os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "agent_files")],
             )
         ),
         error_recovery,
@@ -60,7 +60,7 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
     )
 
     # Initialize code executor server
-    code_storage_dir = "/Users/milanboonstra/code/googleadkagent/agent_files"
+    code_storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "agent_files")
     mcp_toolset_instance_code_executor = await initialize_mcp_server(
         "code_executor_server",
         lambda: MCPToolset(

@@ -22,7 +22,7 @@ This project demonstrates the use of the Google Agent Development Kit (ADK) to c
 ### Steps
 1. **Install Python dependencies:**
    ```powershell
-   pip install -r requirements.txt
+   pip install -r config/requirements.txt
    ```
 
 2. **Set up environment variables:**
@@ -44,19 +44,19 @@ This project demonstrates the use of the Google Agent Development Kit (ADK) to c
 ### Running the Agent
 Start the interactive command-line agent:
 ```bash
-python mcp_agent.py
+python main.py
 ```
 
 With specific model configuration:
 ```bash
-python mcp_agent.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
-python mcp_agent.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
+python main.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
+python main.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
 ```
 
 ### Interactive Commands
 - Type your requests normally to interact with the agent
 - `exit` - Quit the agent
-- `save` - Export the current conversation to a markdown file in `conversation_exports/`
+- `save` - Export the current conversation to a markdown file in `data/conversation_exports/`
 
 ### Conversation Export
 The agent automatically tracks all interactions including:
@@ -73,10 +73,18 @@ Exported conversations are saved as markdown files with timestamps, making them 
 - Documentation
 
 ## Project Structure
-- `app/`: Contains the ADK agent module.
-  - `my_streaming_agent/`: The agent module directory.
-    - `agent.py`: The main script that initializes and runs the ADK agent.
-    - `mcp_agent_utils.py`: Utility functions for the MCP agent.
+- `main.py`: Entry point for the application
+- `src/`: Main source code directory
+  - `core/`: Core system components (mcp_agent.py, token_manager.py, error_recovery_system.py)
+  - `agents/`: Agent configuration (agent_config.py)
+  - `mcp/`: MCP server management (mcp_server_init.py)
+  - `processors/`: Event and data processing (event_processor.py, conversation_logger.py)
+  - `utils/`: Utilities and formatters (mcp_agent_utils.py, telegram_formatter.py)
+- `data/`: Data and working files
+  - `agent_files/`: Agent working directory
+  - `conversation_exports/`: Exported conversation logs
+- `docs/`: Documentation files
+- `config/`: Configuration files (CLAUDE.md, requirements.txt)
     - `agent_files/`: Directory containing files used by the agent.
     - `.env`: Environment variables (e.g., API keys).
 - `README.md`: Project README file.
