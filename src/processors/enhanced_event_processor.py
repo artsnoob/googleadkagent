@@ -6,6 +6,7 @@ from typing import Dict, List, Any, Optional, Callable, Type
 from dataclasses import dataclass
 import json
 from enum import Enum
+import re
 
 from ..utils.mcp_agent_utils import (
     COLOR_GREEN, COLOR_YELLOW, COLOR_CYAN, COLOR_MAGENTA, COLOR_RESET,
@@ -63,13 +64,37 @@ class TextContentHandler(EventHandler):
     def can_handle(self, event: Any, part: Any = None) -> bool:
         return part and hasattr(part, 'text') and part.text
     
+    def _clean_markdown(self, text: str) -> str:
+        """Remove markdown formatting for better CLI readability."""
+        # Remove bold markdown (**text** or __text__)
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'__([^_]+)__', r'\1', text)
+        
+        # Remove italic markdown (*text* or _text_)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'_([^_]+)_', r'\1', text)
+        
+        # Remove inline code (`code`)
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+        
+        # Remove strikethrough (~~text~~)
+        text = re.sub(r'~~([^~]+)~~', r'\1', text)
+        
+        # Clean up any remaining orphan markers
+        text = text.replace('**', '').replace('__', '').replace('~~', '')
+        
+        return text
+    
     async def handle(self, event: Any, part: Any = None) -> ProcessedEvent:
         print_section_header("Agent Response", width=50)
         
-        # Format and display text
+        # Format and display text with markdown removal
         display_lines = []
         for line in part.text.splitlines():
-            formatted_line = f"{COLOR_GREEN}{line}{COLOR_RESET}"
+            # Clean markdown for better readability
+            cleaned_line = self._clean_markdown(line)
+            
+            formatted_line = f"{COLOR_GREEN}{cleaned_line}{COLOR_RESET}"
             print(formatted_line)
             display_lines.append(formatted_line)
         
