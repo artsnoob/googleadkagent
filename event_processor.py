@@ -13,12 +13,17 @@ from mcp_agent_utils import (
 from error_recovery_system import ErrorRecoverySystem, create_failure_context
 
 
-async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None):
+async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None):
     """Process events from the agent response with comprehensive error handling."""
     response_time = None
     assistant_response_parts = []
+    first_event = True
     try:
         async for event in events_async:
+            # Stop loading indicator on first event to prevent display interference
+            if first_event and loading_indicator:
+                first_event = False
+                loading_indicator.stop()
             has_printed_content = False
             if event.content and event.content.parts:
                 for part in event.content.parts:

@@ -309,8 +309,7 @@ async def async_main():
           )
           
           # Process response for this chunk with error recovery
-          response_time = await process_events(events_async, error_recovery, stats, conversation_logger)
-          loading_indicator.stop()
+          response_time = await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator)
           print() # Add blank line between chunks
       else:
         content = types.Content(role='user', parts=[types.Part(text=user_input)])
@@ -326,8 +325,7 @@ async def async_main():
         )
         
         # Process response with error recovery
-        response_time = await process_events(events_async, error_recovery, stats, conversation_logger)
-        loading_indicator.stop()
+        response_time = await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator)
         
         # Show compact stats after each response
         current_tokens = token_manager.count_tokens(str(conversation_history))
