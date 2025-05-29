@@ -23,6 +23,8 @@ Required environment variables in `.env`:
 - `GOOGLE_API_KEY` - Google Gemini API access
 - `OPENROUTER_API_KEY` - (Optional) For OpenRouter models
 - `PERPLEXITY_API_KEY` - (Optional) For Perplexity research features
+- `TELEGRAM_BOT_TOKEN` - (Optional) For Telegram messaging features
+- `DEFAULT_CHAT_ID` - (Optional) Default Telegram chat/channel ID
 
 Install dependencies:
 ```bash
@@ -58,6 +60,7 @@ The system relies on external Node.js MCP servers that must be available:
 - Content scraper at `/Users/milanboonstra/Documents/Cline/MCP/contentscraper-mcp-server/build/index.js`  
 - Fetch server at `/Users/milanboonstra/Documents/Cline/MCP/fetch-server/build/index.js`
 - Perplexity server at `/Users/milanboonstra/Documents/Cline/MCP/perplexity-mcp/build/index.js`
+- Telegram server at `/Users/milanboonstra/Documents/Cline/MCP/telegram-server/build/index.js`
 
 ### Agent Communication Pattern
 1. User input goes to Root Agent

@@ -10,6 +10,7 @@ This project demonstrates the use of the Google Agent Development Kit (ADK) to c
 - Integrates with Google Search.
 - Uses the `gemini-2.5-flash-preview-04-17` model for streaming responses.
 - Supports `python-dotenv` for environment variable management.
+- **Conversation Export**: Save entire conversation history (including tool calls) to markdown files for troubleshooting.
 
 ## Installation
 
@@ -39,13 +40,37 @@ This project demonstrates the use of the Google Agent Development Kit (ADK) to c
    - `fetch-server` (requires building from source)
 
 ## Usage
-To run the ADK web agent, navigate to the `app/` directory in your terminal and execute:
 
-```powershell
-adk web
+### Running the Agent
+Start the interactive command-line agent:
+```bash
+python mcp_agent.py
 ```
 
-The agent will start, and you can access the web interface at the address provided in the terminal output (usually http://localhost:8000). Interact with the agent through the web interface by typing your commands.
+With specific model configuration:
+```bash
+python mcp_agent.py --llm_provider gemini --model_name gemini-2.5-flash-preview-05-20
+python mcp_agent.py --llm_provider openrouter --model_name openrouter/anthropic/claude-3-haiku
+```
+
+### Interactive Commands
+- Type your requests normally to interact with the agent
+- `exit` - Quit the agent
+- `save` - Export the current conversation to a markdown file in `conversation_exports/`
+
+### Conversation Export
+The agent automatically tracks all interactions including:
+- User messages
+- Agent responses  
+- Tool calls with arguments and results
+- Status messages and errors
+- Metadata like web search queries and grounding sources
+
+Exported conversations are saved as markdown files with timestamps, making them ideal for:
+- Troubleshooting and debugging
+- Sharing agent interactions
+- Reviewing agent behavior
+- Documentation
 
 ## Project Structure
 - `app/`: Contains the ADK agent module.

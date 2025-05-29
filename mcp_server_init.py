@@ -111,10 +111,36 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
         exit_stack
     )
 
+    # Check for Telegram bot tokens and warn if missing
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    default_chat_id = os.getenv("DEFAULT_CHAT_ID")
+    if not telegram_bot_token or not default_chat_id:
+        print(f"{COLOR_YELLOW}Warning: TELEGRAM_BOT_TOKEN or DEFAULT_CHAT_ID is not set in .env. Telegram MCP server might fail.{COLOR_RESET}")
+
+    # Initialize Telegram server
+    mcp_toolset_instance_telegram = await initialize_mcp_server(
+        "telegram_server",
+        lambda: MCPToolset(
+            connection_params=StdioServerParameters(
+                command='env',
+                args=[
+                    f"TELEGRAM_BOT_TOKEN={telegram_bot_token}",
+                    f"DEFAULT_CHAT_ID={default_chat_id}",
+                    "node",
+                    "/Users/milanboonstra/Documents/Cline/MCP/telegram-server/build/index.js"
+                ],
+                env={}
+            )
+        ),
+        error_recovery,
+        exit_stack
+    )
+
     return {
         'filesystem': mcp_toolset_instance_filesystem,
         'code_executor': mcp_toolset_instance_code_executor,
         'content_scraper': mcp_toolset_instance_content_scraper,
         'fetch': mcp_toolset_instance_fetch,
-        'perplexity': mcp_toolset_instance_perplexity
+        'perplexity': mcp_toolset_instance_perplexity,
+        'telegram': mcp_toolset_instance_telegram
     }

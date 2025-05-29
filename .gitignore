@@ -18,3 +18,6 @@ venv/
 .mcp_venv/
 agent_files/
 .cron_mcp_server.lock
+
+# Other
+conversation_exports/

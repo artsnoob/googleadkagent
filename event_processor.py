@@ -13,9 +13,10 @@ from mcp_agent_utils import (
 from error_recovery_system import ErrorRecoverySystem, create_failure_context
 
 
-async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None):
+async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None):
     """Process events from the agent response with comprehensive error handling."""
     response_time = None
+    assistant_response_parts = []
     try:
         async for event in events_async:
             has_printed_content = False
@@ -28,11 +29,27 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                             print(f"{COLOR_GREEN}{line}{COLOR_RESET}")
                         print() # Add blank line for separation
                         has_printed_content = True
+                        assistant_response_parts.append(part.text)
                     if part.function_call:
                         print_section_header(f"Tool Call: {part.function_call.name}", width=50)
                         pretty_print_json_string(part.function_call.args, COLOR_YELLOW)
                         print() # Add blank line for separation
                         has_printed_content = True
+                        
+                        # Log tool call if logger available
+                        if conversation_logger:
+                            import json
+                            try:
+                                args_dict = json.loads(part.function_call.args)
+                            except:
+                                args_dict = {"raw_args": part.function_call.args}
+                            # Store tool call info for later when we get the response
+                            if not hasattr(process_events, 'pending_tool_call'):
+                                process_events.pending_tool_call = {}
+                            process_events.pending_tool_call = {
+                                "name": part.function_call.name,
+                                "args": args_dict
+                            }
                     if part.function_response:
                         # Assuming function_response.response might contain a 'name' if it's structured,
                         # otherwise, it might be a simple string or dict.
@@ -46,9 +63,20 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         actual_response_data = part.function_response.response
                         if isinstance(actual_response_data, dict) and 'content' in actual_response_data:
                             format_tool_response(tool_name_for_response, actual_response_data['content'])
+                            response_str = str(actual_response_data['content'])
                         else:
                             format_tool_response(tool_name_for_response, actual_response_data)
+                            response_str = str(actual_response_data)
                         has_printed_content = True
+                        
+                        # Log tool response if logger available
+                        if conversation_logger and hasattr(process_events, 'pending_tool_call'):
+                            conversation_logger.add_tool_call(
+                                process_events.pending_tool_call["name"],
+                                process_events.pending_tool_call["args"],
+                                response_str
+                            )
+                            delattr(process_events, 'pending_tool_call')
             
             # Display grounding metadata if available
             if hasattr(event, 'candidates') and event.candidates:
@@ -61,6 +89,13 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                                 print(f"{COLOR_CYAN}  {SYMBOL_SEARCH} {query}{COLOR_RESET}")
                             print() # Add blank line for separation
                             has_printed_content = True
+                            
+                            # Log search queries as metadata
+                            if conversation_logger:
+                                conversation_logger.add_metadata({
+                                    "type": "web_search_queries",
+                                    "queries": list(grounding.web_search_queries)
+                                })
                         if hasattr(grounding, 'grounding_chunks') and grounding.grounding_chunks:
                             print_section_header("Grounding Sources", width=50)
                             for i, chunk in enumerate(grounding.grounding_chunks):
@@ -75,6 +110,20 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                                 print(f"{COLOR_DIM}    {uri}{COLOR_RESET}")
                             print() # Add blank line for separation
                             has_printed_content = True
+                            
+                            # Log grounding sources as metadata  
+                            if conversation_logger:
+                                sources = []
+                                for chunk in grounding.grounding_chunks:
+                                    if hasattr(chunk, 'web'):
+                                        sources.append({
+                                            "title": chunk.web.title if hasattr(chunk.web, 'title') else "N/A",
+                                            "uri": chunk.web.uri if hasattr(chunk.web, 'uri') else "N/A"
+                                        })
+                                conversation_logger.add_metadata({
+                                    "type": "grounding_sources",
+                                    "sources": sources
+                                })
                         
                         # Display URL Context Metadata if available
                         if hasattr(candidate, 'url_context_metadata') and candidate.url_context_metadata:
@@ -126,6 +175,18 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
             print_status_message(f"Suggested action: {fallback_result.alternative_action}", "info")
         print_status_message("Continuing with next request...", "warning")
         print() # Add blank line for separation
+        
+        # Log error if logger available
+        if conversation_logger:
+            conversation_logger.add_status_message(
+                f"Error processing response: {fallback_result.user_message}",
+                "error"
+            )
+    
+    # Log assistant response if we collected any text
+    if conversation_logger and assistant_response_parts:
+        full_response = "\n".join(assistant_response_parts)
+        conversation_logger.add_assistant_message(full_response)
     
     # End timing and return response time
     if stats:

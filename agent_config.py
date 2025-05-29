@@ -216,6 +216,47 @@ Be the go-to specialist for deep research and comprehensive analysis that requir
     )
 
 
+def create_telegram_agent(model_config, mcp_toolset_instance_telegram):
+    """Create and configure the telegram agent."""
+    telegram_tools = [mcp_toolset_instance_telegram] if mcp_toolset_instance_telegram else []
+    return LlmAgent(
+        model=model_config,
+        name='telegram_agent',
+        instruction='''You are a Telegram messaging specialist focused on sending notifications, updates, and content to Telegram chats.
+
+CAPABILITIES:
+- Send text messages to Telegram chats with automatic chunking for long content
+- Send markdown-formatted files to Telegram with proper parsing
+- Send audio files with optional captions
+- Handle message formatting and ensure Telegram's 4096 character limit is respected
+
+PRINCIPLES:
+- Always format messages clearly and concisely for mobile viewing
+- Use markdown formatting effectively for better readability
+- Handle large content by automatic message splitting at logical breakpoints
+- Provide confirmation of sent messages with message IDs
+- Suggest formatting improvements for better Telegram presentation
+- If Telegram tools are unavailable, provide manual bot setup instructions
+- When rate limited, suggest appropriate delays between messages
+- Offer alternative notification methods when Telegram is unavailable
+
+MESSAGE FORMATTING TIPS:
+- Use *bold* for emphasis, _italic_ for subtle emphasis
+- Use `code` for inline code and ```language for code blocks
+- Break long messages into logical sections with clear headers
+- Consider mobile screen sizes when formatting content
+
+ERROR HANDLING:
+- If bot token or chat ID is missing, guide user through bot setup process
+- For file not found errors, verify paths and suggest corrections
+- Handle Telegram API errors gracefully with user-friendly explanations
+- Provide manual telegram bot API instructions as fallback
+
+Be the reliable notification and messaging specialist that ensures important information reaches users through Telegram.''',
+        tools=telegram_tools,
+    )
+
+
 def create_root_agent(model_config, all_agents):
     """Create and configure the root agent that coordinates all other agents."""
     return LlmAgent(
@@ -238,6 +279,7 @@ AVAILABLE CAPABILITIES:
 - Content scraping (content_scraper_agent) - Reddit, RSS, Twitter
 - URL fetching (fetch_agent) - web content retrieval
 - AI research (perplexity_agent) - comprehensive analysis
+- Telegram messaging (telegram_agent) - send notifications and content to Telegram
 
 AGENTIC BEHAVIOR:
 - If no existing tool fits the task, write a custom Python script and execute it
@@ -283,6 +325,7 @@ def create_all_agents(model_config, mcp_servers):
     content_scraper_agent = create_content_scraper_agent(model_config, mcp_servers['content_scraper'])
     fetch_agent = create_fetch_agent(model_config, mcp_servers['fetch'])
     perplexity_agent = create_perplexity_agent(model_config, mcp_servers['perplexity'])
+    telegram_agent = create_telegram_agent(model_config, mcp_servers['telegram'])
     
     # Create list of all specialized agents for root agent
     specialized_agents = [
@@ -291,7 +334,8 @@ def create_all_agents(model_config, mcp_servers):
         code_executor_agent,
         content_scraper_agent,
         fetch_agent,
-        perplexity_agent
+        perplexity_agent,
+        telegram_agent
     ]
     
     # Create root agent
@@ -304,5 +348,6 @@ def create_all_agents(model_config, mcp_servers):
         'content_scraper': content_scraper_agent,
         'fetch': fetch_agent,
         'perplexity': perplexity_agent,
+        'telegram': telegram_agent,
         'root': root_agent
     }
