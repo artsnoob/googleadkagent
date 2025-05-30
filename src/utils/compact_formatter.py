@@ -30,15 +30,21 @@ class CompactFormatter:
             # Handle lines with asterisks (news items)
             if line.startswith('*'):
                 formatted_line = self._format_news_line(line)
-                formatted_lines.append(formatted_line)
+                if formatted_line:  # Only append if not None (empty bullet)
+                    formatted_lines.append(formatted_line)
             # Handle section headers (lines ending with :)
             elif line.endswith(':') and not self.url_pattern.search(line):
                 if formatted_lines and formatted_lines[-1] != "":
                     formatted_lines.append("")
                 formatted_lines.append(f"{COLOR_CYAN}{line}{COLOR_RESET}")
-            # Handle lines that are just URLs
-            elif self.url_pattern.match(line):
-                formatted_lines.append(f"  {COLOR_BLUE}{line}{COLOR_RESET}")
+            # Handle lines that start with "URL:" or are just URLs
+            elif line.startswith('URL:') or self.url_pattern.match(line):
+                # Extract just the URL part
+                if line.startswith('URL:'):
+                    url = line[4:].strip()
+                else:
+                    url = line
+                formatted_lines.append(f"  {COLOR_BLUE}{url}{COLOR_RESET}")
             # Handle regular lines
             else:
                 formatted_lines.append(self._format_regular_line(line))
@@ -53,6 +59,10 @@ class CompactFormatter:
         """Format a news item line starting with asterisk."""
         # Remove the asterisk
         line = line[1:].strip()
+        
+        # Skip empty bullet points
+        if not line:
+            return None
         
         # Check if line contains URL in parentheses
         url_match = re.search(r'\((https?://[^\)]+)\)', line)
