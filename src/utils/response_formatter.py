@@ -109,10 +109,9 @@ class ResponseFormatter:
         """Format a single news item."""
         formatted = []
         
-        # Add separator for all items except the first
+        # Add minimal separator between items (not for the first one)
         if item_number > 0:
-            formatted.append(f"{COLOR_DIM}{BOX_HORIZONTAL * 40}{COLOR_RESET}")
-            formatted.append("")
+            formatted.append("")  # Just one blank line between items
         
         # Extract title, content, and URL
         title = ""
@@ -132,27 +131,20 @@ class ResponseFormatter:
             else:
                 content_lines.append(line)
         
-        # Format title
+        # Format title with bullet point
         if title:
-            wrapped_title = self._wrap_text(title, self.max_line_width - 4)
-            formatted.append(f"{COLOR_BOLD}{COLOR_GREEN}{SYMBOL_INFO} {wrapped_title[0]}{COLOR_RESET}")
-            for continuation in wrapped_title[1:]:
-                formatted.append(f"{COLOR_BOLD}{COLOR_GREEN}  {continuation}{COLOR_RESET}")
+            formatted.append(f"{COLOR_GREEN}• {title}{COLOR_RESET}")
         
-        # Format content
+        # Format content inline (no extra spacing)
         if content_lines:
-            formatted.append("")  # Add spacing
             for line in content_lines:
-                # Handle special formatting (Reddit, Twitter)
+                # Keep content compact
                 line = self._highlight_special_content(line)
-                wrapped = self._wrap_text(line, self.max_line_width - 4)
-                for wrapped_line in wrapped:
-                    formatted.append(f"  {wrapped_line}")
+                formatted.append(f"  {line}")
         
-        # Format URL on separate line
+        # Format URL inline with content
         if url:
-            formatted.append("")  # Add spacing
-            formatted.append(f"  {COLOR_BLUE}🔗 {self._format_url(url)}{COLOR_RESET}")
+            formatted.append(f"  {COLOR_BLUE}{url}{COLOR_RESET}")
         
         return formatted
     
@@ -160,28 +152,21 @@ class ResponseFormatter:
         """Format weather content with better visual structure."""
         lines = text.split('\n')
         formatted_lines = []
-        in_section = False
         
         for line in lines:
             line = line.strip()
             if not line:
-                formatted_lines.append("")
-                in_section = False
-                continue
+                continue  # Skip empty lines for more compact display
             
             # Check if this is a section header
             if self._is_weather_section_header(line):
-                if formatted_lines:  # Add separator before new sections
-                    formatted_lines.append(f"{COLOR_DIM}{BOX_HORIZONTAL * 30}{COLOR_RESET}")
-                formatted_lines.append(f"{COLOR_BOLD}{COLOR_CYAN}{line}{COLOR_RESET}")
-                in_section = True
+                if formatted_lines:  # Add single blank line before new sections
+                    formatted_lines.append("")
+                formatted_lines.append(f"{COLOR_CYAN}{line}:{COLOR_RESET}")
             else:
                 # Format weather data
                 line = self._format_weather_line(line)
-                if in_section:
-                    formatted_lines.append(f"  {line}")
-                else:
-                    formatted_lines.append(line)
+                formatted_lines.append(f"  {line}")
         
         return '\n'.join(formatted_lines)
     
@@ -227,15 +212,12 @@ class ResponseFormatter:
         for line in lines:
             urls = self.url_pattern.findall(line)
             if urls:
-                # Replace URLs with formatted versions
+                # Put URL on next line without extra spacing
                 for url in urls:
-                    formatted_url = self._format_url(url)
-                    line = line.replace(url, f"\n  {COLOR_BLUE}🔗 {formatted_url}{COLOR_RESET}")
-            
-            # Wrap long lines
-            if len(line) > self.max_line_width:
-                wrapped = self._wrap_text(line, self.max_line_width)
-                formatted_lines.extend(wrapped)
+                    line_without_url = line.replace(url, '').strip()
+                    if line_without_url:
+                        formatted_lines.append(line_without_url)
+                    formatted_lines.append(f"{COLOR_BLUE}{url}{COLOR_RESET}")
             else:
                 formatted_lines.append(line)
         

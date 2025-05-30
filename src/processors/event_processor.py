@@ -12,7 +12,7 @@ from ..utils.mcp_agent_utils import (
 )
 from ..core.error_recovery_system import ErrorRecoverySystem, create_failure_context
 from ..utils.telegram_formatter import markdown_to_plain_text
-from ..utils.response_formatter import format_agent_response
+from ..utils.compact_formatter import format_compact
 
 
 async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None):
@@ -33,8 +33,8 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         print_section_header("Agent Response", width=50)
                         # Remove markdown formatting for better CLI readability
                         clean_text = markdown_to_plain_text(part.text)
-                        # Apply enhanced formatting for better readability
-                        formatted_text = format_agent_response(clean_text)
+                        # Apply compact formatting for better readability
+                        formatted_text = format_compact(clean_text)
                         # Print the formatted text
                         print(formatted_text)
                         print() # Add blank line for separation
