@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Google ADK Agent CLI Wrapper
+# This script enables system-wide access to the agent command
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Activate the virtual environment
+source "$SCRIPT_DIR/venv/bin/activate"
+
+# Change to the project directory
+cd "$SCRIPT_DIR"
+
+# Check if first argument is a query (doesn't start with -)
+if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+    # Treat all arguments as a query
+    python main.py -q "$@"
+else
+    # Pass arguments as-is
+    python main.py "$@"
+fi

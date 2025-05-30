@@ -26,23 +26,25 @@ def suppress_output():
         sys.stderr = old_stderr
 
 
-async def initialize_mcp_server(server_name: str, init_func, error_recovery: ErrorRecoverySystem, exit_stack: AsyncExitStack):
+async def initialize_mcp_server(server_name: str, init_func, error_recovery: ErrorRecoverySystem, exit_stack: AsyncExitStack, quiet: bool = False):
     """Helper function with enhanced error recovery for MCP server initialization"""
     try:
         # Suppress output during initialization to hide unwanted messages
         with suppress_output():
             server_instance = init_func()
         exit_stack.push_async_callback(lambda: server_instance.close())
-        print_status_message(f"{server_name} initialized successfully", "success", show_time=False)
+        if not quiet:
+            print_status_message(f"{server_name} initialized successfully", "success", show_time=False)
         return server_instance
     except Exception as e:
         context = create_failure_context(e, tool_name=server_name, user_intent="initialize_mcp_server")
         fallback_result = await error_recovery.handle_failure(context)
-        print_status_message(f"{server_name} failed to initialize: {fallback_result.user_message}", "warning", show_time=False)
+        if not quiet:
+            print_status_message(f"{server_name} failed to initialize: {fallback_result.user_message}", "warning", show_time=False)
         return None
 
 
-async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_stack: AsyncExitStack):
+async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_stack: AsyncExitStack, quiet: bool = False):
     """Initialize all MCP servers and return them as a dictionary."""
     
     # Initialize filesystem server
@@ -56,7 +58,8 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             )
         ),
         error_recovery,
-        exit_stack
+        exit_stack,
+        quiet
     )
 
     # Initialize code executor server
@@ -77,7 +80,8 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             )
         ),
         error_recovery,
-        exit_stack
+        exit_stack,
+        quiet
     )
 
     # Initialize content scraper server
@@ -90,7 +94,8 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             )
         ),
         error_recovery,
-        exit_stack
+        exit_stack,
+        quiet
     )
 
     # Initialize fetch server
@@ -103,12 +108,13 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             )
         ),
         error_recovery,
-        exit_stack
+        exit_stack,
+        quiet
     )
 
     # Check for Perplexity API key and warn if missing
     perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
-    if not perplexity_api_key:
+    if not perplexity_api_key and not quiet:
         print(f"{COLOR_YELLOW}Warning: PERPLEXITY_API_KEY is not set in .env. Perplexity MCP server might fail.{COLOR_RESET}")
 
     # Initialize Perplexity server
@@ -126,13 +132,14 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             )
         ),
         error_recovery,
-        exit_stack
+        exit_stack,
+        quiet
     )
 
     # Check for Telegram bot tokens and warn if missing
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     default_chat_id = os.getenv("DEFAULT_CHAT_ID")
-    if not telegram_bot_token or not default_chat_id:
+    if (not telegram_bot_token or not default_chat_id) and not quiet:
         print(f"{COLOR_YELLOW}Warning: TELEGRAM_BOT_TOKEN or DEFAULT_CHAT_ID is not set in .env. Telegram MCP server might fail.{COLOR_RESET}")
 
     # Initialize Telegram server
@@ -151,7 +158,8 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
             )
         ),
         error_recovery,
-        exit_stack
+        exit_stack,
+        quiet
     )
 
     return {

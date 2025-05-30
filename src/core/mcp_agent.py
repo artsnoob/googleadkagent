@@ -109,7 +109,27 @@ parser.add_argument(
     default="gemini-2.5-flash-preview-05-20",
     help="The model name to use. For Gemini, e.g., 'gemini-2.5-flash-preview-05-20'. For OpenRouter, e.g., 'openrouter/anthropic/claude-3-haiku'. Ensure OPENROUTER_API_KEY is set in .env if using OpenRouter."
 )
+parser.add_argument(
+    "-q", "--query",
+    type=str,
+    nargs='+',
+    help="Direct query to send to the agent (non-interactive mode)"
+)
+parser.add_argument(
+    "-m", "--model",
+    type=str,
+    dest="model_name_short",
+    help="Shorthand for --model_name"
+)
 args = parser.parse_args()
+
+# Handle shorthand model flag
+if args.model_name_short:
+    args.model_name = args.model_name_short
+
+# Join query parts if provided as multiple arguments
+if args.query:
+    args.query = ' '.join(args.query)
 
 # --- Main Execution Logic ---
 async def async_main():
@@ -119,10 +139,12 @@ async def async_main():
     if not os.getenv("OPENROUTER_API_KEY"):
       print(f"{COLOR_YELLOW}Warning: --llm_provider is 'openrouter' but OPENROUTER_API_KEY is not set in .env. LiteLLM might fail.{COLOR_RESET}")
     model_config_to_use = LiteLlm(model=args.model_name)
-    print_status_message(f"Using OpenRouter model: {args.model_name}", "success", show_time=False)
+    if not args.query:
+      print_status_message(f"Using OpenRouter model: {args.model_name}", "success", show_time=False)
   else: # Default to Gemini
     model_config_to_use = args.model_name
-    print_status_message(f"Using Gemini model: {args.model_name}", "success", show_time=False)
+    if not args.query:
+      print_status_message(f"Using Gemini model: {args.model_name}", "success", show_time=False)
 
   # Initialize token manager with appropriate context window
   # Gemini 1.5 and 2.x models have large context windows
@@ -133,16 +155,19 @@ async def async_main():
     max_tokens = 120000  # 120K for older models or other providers
   
   token_manager = TokenManager(model_name=args.model_name, max_context_tokens=max_tokens)
-  print_status_message(f"Token manager initialized with {max_tokens:,} max context tokens", "success", show_time=False)
+  if not args.query:
+    print_status_message(f"Token manager initialized with {max_tokens:,} max context tokens", "success", show_time=False)
   
   # Initialize error recovery system
   error_recovery = ErrorRecoverySystem()
-  print_status_message("Error recovery system initialized", "success", show_time=False)
+  if not args.query:
+    print_status_message("Error recovery system initialized", "success", show_time=False)
   
   # Initialize conversation logger
   conversation_logger = ConversationLogger()
   conversation_logger.set_model_info(args.llm_provider, args.model_name)
-  print_status_message("Conversation logger initialized", "success", show_time=False)
+  if not args.query:
+    print_status_message("Conversation logger initialized", "success", show_time=False)
 
   session_service = InMemorySessionService()
   # Artifact service might not be needed for this example
@@ -152,13 +177,14 @@ async def async_main():
       state={}, app_name='mcp_filesystem_app', user_id='user_fs'
   )
 
-  # Print welcome banner
-  print_welcome_banner()
+  # Print welcome banner only in interactive mode
+  if not args.query:
+    print_welcome_banner()
   
   # Create an AsyncExitStack to manage the lifecycle of MCPToolset
   async with AsyncExitStack() as exit_stack:
     # Initialize all MCP servers
-    mcp_servers = await initialize_all_mcp_servers(error_recovery, exit_stack)
+    mcp_servers = await initialize_all_mcp_servers(error_recovery, exit_stack, quiet=args.query is not None)
 
     # Create all agents using the configuration module
     agents = create_all_agents(model_config_to_use, mcp_servers)
@@ -170,6 +196,32 @@ async def async_main():
         # artifact_service=artifacts_service, # Uncomment if you need artifact service
         session_service=session_service,
     )
+
+    # Handle direct query mode (non-interactive)
+    if args.query:
+        
+        # Create conversation logger for direct query
+        conversation_logger.add_user_message(args.query)
+        
+        # Create loading indicator
+        loading_indicator = LoadingIndicator()
+        loading_indicator.start()
+        
+        # Create stats tracker
+        stats = ConversationStats()
+        stats.start_request()
+        
+        # Process the query
+        content = types.Content(role='user', parts=[types.Part(text=args.query)])
+        events_async = runner.run_async(
+            session_id=session.id, user_id=session.user_id, new_message=content
+        )
+        
+        # Process response
+        await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator)
+        
+        # Exit after processing
+        return
 
     print()  # Add blank line for separation between initialized servers and interactive mode
     print_section_header("Google ADK Agent - Interactive Mode", width=50)
