@@ -21,6 +21,7 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
     response_time = None
     assistant_response_parts = []
     first_event = True
+    tools_used = set()  # Track unique tools used
     try:
         async for event in events_async:
             # Stop loading indicator on first event to prevent display interference
@@ -53,6 +54,9 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         has_printed_content = True
                         assistant_response_parts.append(part.text)
                     if part.function_call:
+                        # Track tool usage for shell mode
+                        tools_used.add(part.function_call.name)
+                        
                         if not shell_mode:
                             print_section_header(f"Tool Call: {part.function_call.name}", width=50)
                             pretty_print_json_string(part.function_call.args, COLOR_YELLOW)
@@ -214,6 +218,11 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                 f"Error processing response: {fallback_result.user_message}",
                 "error"
             )
+    
+    # Show tools used in shell mode
+    if shell_mode and tools_used:
+        tools_list = ", ".join(sorted(tools_used))
+        print(f"{COLOR_DIM}Used: {COLOR_YELLOW}{tools_list}{COLOR_RESET}")
     
     # Log assistant response if we collected any text
     if conversation_logger and assistant_response_parts:

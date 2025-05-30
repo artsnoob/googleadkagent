@@ -263,8 +263,20 @@ async def async_main():
         else:
             await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator, shell_mode=args.shell_mode)
         
-        # Exit after processing
-        return
+        # In shell mode, suppress any remaining output during cleanup
+        if args.shell_mode:
+            # Redirect stderr to suppress final Info messages during cleanup
+            old_stderr = sys.stderr
+            sys.stderr = open(os.devnull, 'w')
+            try:
+                # Exit after processing
+                return
+            finally:
+                sys.stderr.close()
+                sys.stderr = old_stderr
+        else:
+            # Exit after processing
+            return
 
     print()  # Add blank line for separation between initialized servers and interactive mode
     print_section_header("Google ADK Agent - Interactive Mode", width=50)
