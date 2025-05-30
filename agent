@@ -14,8 +14,8 @@ cd "$SCRIPT_DIR"
 
 # Check if first argument is a query (doesn't start with -)
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
-    # Treat all arguments as a query
-    python main.py -q "$@"
+    # Treat all arguments as a query with shell mode
+    python main.py -q "$@" --shell-mode
 else
     # Pass arguments as-is
     python main.py "$@"

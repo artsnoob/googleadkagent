@@ -19,7 +19,7 @@ import warnings
 # Import from our modular components
 from ..utils.mcp_agent_utils import (
     COLOR_GREEN, COLOR_YELLOW, COLOR_RESET, COLOR_CYAN, COLOR_DIM, COLOR_BOLD,
-    SYMBOL_THINKING, SYMBOL_LOADING,
+    COLOR_WHITE, SYMBOL_THINKING, SYMBOL_LOADING,
     print_section_header, print_status_message, print_session_stats, 
     print_welcome_banner, ConversationStats
 )
@@ -121,6 +121,11 @@ parser.add_argument(
     dest="model_name_short",
     help="Shorthand for --model_name"
 )
+parser.add_argument(
+    "--shell-mode",
+    action="store_true",
+    help="Enable simplified shell mode UI (used by AgentSH)"
+)
 args = parser.parse_args()
 
 # Handle shorthand model flag
@@ -203,9 +208,25 @@ async def async_main():
         # Create conversation logger for direct query
         conversation_logger.add_user_message(args.query)
         
+        # Show simplified UI banner if in shell mode
+        if args.shell_mode:
+            # Show minimal banner without clearing screen
+            print()  # Add a blank line for separation
+            print(f"{COLOR_CYAN}{'=' * 50}{COLOR_RESET}")
+            print(f"{COLOR_BOLD}{COLOR_WHITE}{'AgentSH':^50}{COLOR_RESET}")
+            print(f"{COLOR_CYAN}{'=' * 50}{COLOR_RESET}")
+            print()
+            print(f"{COLOR_DIM}Processing your request...{COLOR_RESET}")
+            print()
+        
         # Create loading indicator
         loading_indicator = LoadingIndicator()
-        loading_indicator.start()
+        if not args.shell_mode:
+            loading_indicator.start()
+        else:
+            # In shell mode, show a simple progress indicator
+            sys.stdout.write(f"{COLOR_CYAN}⏳ Working...{COLOR_RESET}")
+            sys.stdout.flush()
         
         # Create stats tracker
         stats = ConversationStats()
@@ -218,7 +239,7 @@ async def async_main():
         )
         
         # Process response
-        await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator)
+        await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator, shell_mode=args.shell_mode)
         
         # Exit after processing
         return
@@ -453,7 +474,7 @@ async def async_main():
         print()  # Add blank line before next "You:" prompt
 
 
-print("Cleanup complete.") # This will be printed after exit_stack.aclose() implicitly
+# Cleanup is handled automatically by exit_stack.aclose()
 
 if __name__ == '__main__':
   try:

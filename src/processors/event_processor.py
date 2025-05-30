@@ -15,7 +15,7 @@ from ..utils.telegram_formatter import markdown_to_plain_text
 from ..utils.compact_formatter import format_compact
 
 
-async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None):
+async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None, shell_mode: bool = False):
     """Process events from the agent response with comprehensive error handling."""
     response_time = None
     assistant_response_parts = []
@@ -23,14 +23,20 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
     try:
         async for event in events_async:
             # Stop loading indicator on first event to prevent display interference
-            if first_event and loading_indicator:
+            if first_event:
                 first_event = False
-                loading_indicator.stop()
+                if loading_indicator:
+                    loading_indicator.stop()
+                if shell_mode:
+                    # Clear the "Working..." line
+                    print("\r" + " " * 50 + "\r", end="")
+                    print()
             has_printed_content = False
             if event.content and event.content.parts:
                 for part in event.content.parts:
                     if part.text:
-                        print_section_header("Agent Response", width=50)
+                        if not shell_mode:
+                            print_section_header("Agent Response", width=50)
                         # Remove markdown formatting for better CLI readability
                         clean_text = markdown_to_plain_text(part.text)
                         # Apply compact formatting for better readability
@@ -41,9 +47,10 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         has_printed_content = True
                         assistant_response_parts.append(part.text)
                     if part.function_call:
-                        print_section_header(f"Tool Call: {part.function_call.name}", width=50)
-                        pretty_print_json_string(part.function_call.args, COLOR_YELLOW)
-                        print() # Add blank line for separation
+                        if not shell_mode:
+                            print_section_header(f"Tool Call: {part.function_call.name}", width=50)
+                            pretty_print_json_string(part.function_call.args, COLOR_YELLOW)
+                            print() # Add blank line for separation
                         has_printed_content = True
                         
                         # Log tool call if logger available
@@ -71,12 +78,18 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         # The actual response content is in part.function_response.response
                         # This 'response' field itself can be a dict containing 'content' or other structured data.
                         actual_response_data = part.function_response.response
-                        if isinstance(actual_response_data, dict) and 'content' in actual_response_data:
-                            format_tool_response(tool_name_for_response, actual_response_data['content'])
-                            response_str = str(actual_response_data['content'])
+                        if not shell_mode:
+                            if isinstance(actual_response_data, dict) and 'content' in actual_response_data:
+                                format_tool_response(tool_name_for_response, actual_response_data['content'])
+                                response_str = str(actual_response_data['content'])
+                            else:
+                                format_tool_response(tool_name_for_response, actual_response_data)
+                                response_str = str(actual_response_data)
                         else:
-                            format_tool_response(tool_name_for_response, actual_response_data)
-                            response_str = str(actual_response_data)
+                            if isinstance(actual_response_data, dict) and 'content' in actual_response_data:
+                                response_str = str(actual_response_data['content'])
+                            else:
+                                response_str = str(actual_response_data)
                         has_printed_content = True
                         
                         # Log tool response if logger available
@@ -94,10 +107,11 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                     if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                         grounding = candidate.grounding_metadata
                         if hasattr(grounding, 'web_search_queries') and grounding.web_search_queries:
-                            print_section_header("Web Search Queries", width=50)
-                            for query in grounding.web_search_queries:
-                                print(f"{COLOR_CYAN}  {SYMBOL_SEARCH} {query}{COLOR_RESET}")
-                            print() # Add blank line for separation
+                            if not shell_mode:
+                                print_section_header("Web Search Queries", width=50)
+                                for query in grounding.web_search_queries:
+                                    print(f"{COLOR_CYAN}  {SYMBOL_SEARCH} {query}{COLOR_RESET}")
+                                print() # Add blank line for separation
                             has_printed_content = True
                             
                             # Log search queries as metadata
@@ -107,18 +121,20 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                                     "queries": list(grounding.web_search_queries)
                                 })
                         if hasattr(grounding, 'grounding_chunks') and grounding.grounding_chunks:
-                            print_section_header("Grounding Sources", width=50)
-                            for i, chunk in enumerate(grounding.grounding_chunks):
-                                title = "N/A"
-                                uri = "N/A"
-                                if hasattr(chunk, 'web'):
-                                    if hasattr(chunk.web, 'title') and chunk.web.title:
-                                        title = chunk.web.title
-                                    if hasattr(chunk.web, 'uri') and chunk.web.uri:
-                                        uri = chunk.web.uri
-                                print(f"{COLOR_CYAN}  {SYMBOL_INFO} Source {i+1}: {title[:50]}{'...' if len(title) > 50 else ''}{COLOR_RESET}")
-                                print(f"{COLOR_DIM}    {uri}{COLOR_RESET}")
-                            print() # Add blank line for separation
+                            if not shell_mode:
+                                print_section_header("Grounding Sources", width=50)
+                            if not shell_mode:
+                                for i, chunk in enumerate(grounding.grounding_chunks):
+                                    title = "N/A"
+                                    uri = "N/A"
+                                    if hasattr(chunk, 'web'):
+                                        if hasattr(chunk.web, 'title') and chunk.web.title:
+                                            title = chunk.web.title
+                                        if hasattr(chunk.web, 'uri') and chunk.web.uri:
+                                            uri = chunk.web.uri
+                                    print(f"{COLOR_CYAN}  {SYMBOL_INFO} Source {i+1}: {title[:50]}{'...' if len(title) > 50 else ''}{COLOR_RESET}")
+                                    print(f"{COLOR_DIM}    {uri}{COLOR_RESET}")
+                                print() # Add blank line for separation
                             has_printed_content = True
                             
                             # Log grounding sources as metadata  
@@ -136,7 +152,7 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                                 })
                         
                         # Display URL Context Metadata if available
-                        if hasattr(candidate, 'url_context_metadata') and candidate.url_context_metadata:
+                        if not shell_mode and hasattr(candidate, 'url_context_metadata') and candidate.url_context_metadata:
                             url_meta_data = candidate.url_context_metadata
                             if hasattr(url_meta_data, 'url_metadata') and url_meta_data.url_metadata:
                                 print_section_header("URL Context Metadata", width=50)
@@ -152,7 +168,7 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                                 has_printed_content = True
 
                         # Display rendered search suggestions HTML
-                        if hasattr(grounding, 'search_entry_point') and \
+                        if not shell_mode and hasattr(grounding, 'search_entry_point') and \
                            hasattr(grounding.search_entry_point, 'rendered_content') and \
                            grounding.search_entry_point.rendered_content:
                             print(f"{COLOR_CYAN}--- Rendered Search Suggestions (HTML) ---{COLOR_RESET}")
@@ -166,7 +182,7 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                             print() # Add blank line for separation
                             has_printed_content = True
             
-            if not has_printed_content: # If no specific part was printed above
+            if not has_printed_content and not shell_mode: # If no specific part was printed above
                 print(f"{COLOR_MAGENTA}--- Event Information ---{COLOR_RESET}")
                 # Print event information without attempting JSON formatting
                 try:
