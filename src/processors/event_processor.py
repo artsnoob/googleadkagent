@@ -4,7 +4,7 @@ Contains all event handling and response processing logic.
 """
 
 from ..utils.mcp_agent_utils import (
-    COLOR_GREEN, COLOR_YELLOW, COLOR_CYAN, COLOR_MAGENTA, COLOR_RESET,
+    COLOR_YELLOW, COLOR_CYAN, COLOR_MAGENTA, COLOR_RESET,
     COLOR_BLUE, COLOR_DIM, SYMBOL_SUCCESS, SYMBOL_WARNING, SYMBOL_THINKING,
     SYMBOL_TOOL, SYMBOL_SEARCH, SYMBOL_INFO, pretty_print_json_string,
     print_section_header, print_status_message, format_tool_response,
@@ -12,6 +12,7 @@ from ..utils.mcp_agent_utils import (
 )
 from ..core.error_recovery_system import ErrorRecoverySystem, create_failure_context
 from ..utils.telegram_formatter import markdown_to_plain_text
+from ..utils.response_formatter import format_agent_response
 
 
 async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None):
@@ -32,9 +33,10 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                         print_section_header("Agent Response", width=50)
                         # Remove markdown formatting for better CLI readability
                         clean_text = markdown_to_plain_text(part.text)
-                        # Print each line of multi-line text with color
-                        for line in clean_text.splitlines():
-                            print(f"{COLOR_GREEN}{line}{COLOR_RESET}")
+                        # Apply enhanced formatting for better readability
+                        formatted_text = format_agent_response(clean_text)
+                        # Print the formatted text
+                        print(formatted_text)
                         print() # Add blank line for separation
                         has_printed_content = True
                         assistant_response_parts.append(part.text)

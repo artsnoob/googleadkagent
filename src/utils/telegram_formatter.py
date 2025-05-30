@@ -117,3 +117,51 @@ def format_weather_for_telegram(text):
             formatted_lines.append('')
     
     return '\n'.join(formatted_lines)
+
+
+def format_news_for_telegram(text):
+    """
+    Special formatting for news content to make it more readable on Telegram.
+    Ensures URLs are on separate lines and content is well-structured.
+    """
+    import re
+    
+    # Convert to plain text first
+    text = markdown_to_plain_text(text)
+    
+    # Pattern to find URLs
+    url_pattern = re.compile(r'(https?://[^\s]+)')
+    
+    lines = text.split('\n')
+    formatted_lines = []
+    current_item = []
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Check if line contains URL
+        urls = url_pattern.findall(line)
+        if urls:
+            # Remove URLs from the line
+            clean_line = url_pattern.sub('', line).strip()
+            if clean_line:
+                current_item.append(clean_line)
+            # Add URLs on separate lines
+            for url in urls:
+                current_item.append(f"🔗 {url}")
+        elif line:
+            current_item.append(line)
+        
+        # If we hit an empty line or end of item, format the current item
+        if (not line or line == lines[-1]) and current_item:
+            # Add separator between items
+            if formatted_lines:
+                formatted_lines.append("")
+                formatted_lines.append("─" * 30)
+                formatted_lines.append("")
+            
+            # Add the item content
+            formatted_lines.extend(current_item)
+            current_item = []
+    
+    return '\n'.join(formatted_lines)
