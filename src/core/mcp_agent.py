@@ -15,6 +15,7 @@ import termios
 import tty
 import logging
 import warnings
+import io
 
 # Import from our modular components
 from ..utils.mcp_agent_utils import (
@@ -29,6 +30,7 @@ from ..mcp.mcp_server_init import initialize_all_mcp_servers
 from ..agents.agent_config import create_all_agents
 from ..processors.event_processor import process_events
 from ..processors.conversation_logger import ConversationLogger
+from ..ui.shell_ui import ShellUI
 
 # Suppress various warnings from Google ADK and MCP
 logging.getLogger('google.adk.tools.mcp_tool.mcp_session_manager').setLevel(logging.ERROR)
@@ -188,8 +190,17 @@ async def async_main():
   
   # Create an AsyncExitStack to manage the lifecycle of MCPToolset
   async with AsyncExitStack() as exit_stack:
-    # Initialize all MCP servers
-    mcp_servers = await initialize_all_mcp_servers(error_recovery, exit_stack, quiet=args.query is not None)
+    # Initialize all MCP servers - suppress stderr in shell mode
+    if args.shell_mode:
+        # Capture stderr during MCP server initialization
+        old_stderr = sys.stderr
+        sys.stderr = io.StringIO()
+        try:
+            mcp_servers = await initialize_all_mcp_servers(error_recovery, exit_stack, quiet=True)
+        finally:
+            sys.stderr = old_stderr
+    else:
+        mcp_servers = await initialize_all_mcp_servers(error_recovery, exit_stack, quiet=args.query is not None)
 
     # Create all agents using the configuration module
     agents = create_all_agents(model_config_to_use, mcp_servers)
@@ -208,25 +219,17 @@ async def async_main():
         # Create conversation logger for direct query
         conversation_logger.add_user_message(args.query)
         
-        # Show simplified UI banner if in shell mode
+        # Show enhanced UI banner if in shell mode
         if args.shell_mode:
-            # Show minimal banner without clearing screen
-            print()  # Add a blank line for separation
-            print(f"{COLOR_CYAN}{'=' * 50}{COLOR_RESET}")
-            print(f"{COLOR_BOLD}{COLOR_WHITE}{'AgentSH':^50}{COLOR_RESET}")
-            print(f"{COLOR_CYAN}{'=' * 50}{COLOR_RESET}")
-            print()
-            print(f"{COLOR_DIM}Processing your request...{COLOR_RESET}")
-            print()
+            # Show aesthetic banner without clearing screen
+            ShellUI.print_banner()
+            ShellUI.print_processing("Processing your request")
         
         # Create loading indicator
         loading_indicator = LoadingIndicator()
         if not args.shell_mode:
             loading_indicator.start()
-        else:
-            # In shell mode, show a simple progress indicator
-            sys.stdout.write(f"{COLOR_CYAN}⏳ Working...{COLOR_RESET}")
-            sys.stdout.flush()
+        # Shell mode processing is handled by ShellUI.print_processing() above
         
         # Create stats tracker
         stats = ConversationStats()
@@ -238,8 +241,27 @@ async def async_main():
             session_id=session.id, user_id=session.user_id, new_message=content
         )
         
-        # Process response
-        await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator, shell_mode=args.shell_mode)
+        # Process response - suppress stdout/stderr in shell mode to hide Info messages
+        if args.shell_mode:
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+            sys.stderr = captured_output
+            try:
+                await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator, shell_mode=args.shell_mode)
+            finally:
+                # Restore stdout/stderr
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+                # Print only the main response content, filtering out Info messages
+                output = captured_output.getvalue()
+                lines = output.split('\n')
+                filtered_lines = [line for line in lines if not line.strip().startswith('Info:')]
+                if filtered_lines:
+                    print('\n'.join(filtered_lines))
+        else:
+            await process_events(events_async, error_recovery, stats, conversation_logger, loading_indicator, shell_mode=args.shell_mode)
         
         # Exit after processing
         return

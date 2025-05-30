@@ -13,6 +13,7 @@ from ..utils.mcp_agent_utils import (
 from ..core.error_recovery_system import ErrorRecoverySystem, create_failure_context
 from ..utils.telegram_formatter import markdown_to_plain_text
 from ..utils.compact_formatter import format_compact
+from ..ui.shell_ui import ShellUI
 
 
 async def process_events(events_async, error_recovery_system: ErrorRecoverySystem, stats: ConversationStats = None, conversation_logger = None, loading_indicator = None, shell_mode: bool = False):
@@ -37,12 +38,17 @@ async def process_events(events_async, error_recovery_system: ErrorRecoverySyste
                     if part.text:
                         if not shell_mode:
                             print_section_header("Agent Response", width=50)
+                        else:
+                            ShellUI.format_response_header("Response")
                         # Remove markdown formatting for better CLI readability
                         clean_text = markdown_to_plain_text(part.text)
                         # Apply compact formatting for better readability
                         formatted_text = format_compact(clean_text)
-                        # Print the formatted text
-                        print(formatted_text)
+                        # Print the formatted text with shell UI formatting if in shell mode
+                        if shell_mode:
+                            print(ShellUI.format_response(formatted_text))
+                        else:
+                            print(formatted_text)
                         print() # Add blank line for separation
                         has_printed_content = True
                         assistant_response_parts.append(part.text)
