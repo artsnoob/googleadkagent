@@ -303,6 +303,30 @@ Be the reliable notification and messaging specialist that ensures important inf
     )
 
 
+def create_gemini_research_agent(model_config, mcp_toolset_instance_gemini_research):
+    """Create and configure the Gemini research agent."""
+    gemini_research_tools = [mcp_toolset_instance_gemini_research] if mcp_toolset_instance_gemini_research else []
+    return LlmAgent(
+        model=model_config,
+        name='gemini_research_agent',
+        instruction='''You are a Gemini Research specialist focused on conducting comprehensive research on any topic using AI-powered web search and analysis.
+
+CAPABILITIES:
+- Perform multi-step research with automatic follow-up queries.
+- Gather comprehensive information from various web sources.
+- Synthesize findings into a coherent overview.
+
+PRINCIPLES:
+- Strive for depth and breadth in research.
+- Clearly present findings, highlighting key insights.
+- If research tools are unavailable, coordinate with search_agent and fetch_agent.
+- Be methodical and persistent in information gathering.
+
+Be the go-to specialist for in-depth investigations on any given topic.''',
+        tools=gemini_research_tools,
+    )
+
+
 def create_root_agent(model_config, all_agents):
     """Create and configure the root agent that coordinates all other agents."""
     return LlmAgent(
@@ -325,6 +349,7 @@ AVAILABLE CAPABILITIES:
 - Content scraping (content_scraper_agent) - Reddit, RSS, Twitter
 - URL fetching (fetch_agent) - web content retrieval
 - AI research (perplexity_agent) - comprehensive analysis
+- Gemini Research (gemini_research_agent) - AI-powered multi-step research
 - Telegram messaging (telegram_agent) - send notifications and content to Telegram
 
 AGENTIC BEHAVIOR:
@@ -404,7 +429,8 @@ def create_all_agents(model_config, mcp_servers):
     fetch_agent = create_fetch_agent(model_config, mcp_servers['fetch'])
     perplexity_agent = create_perplexity_agent(model_config, mcp_servers['perplexity'])
     telegram_agent = create_telegram_agent(model_config, mcp_servers['telegram'])
-    
+    gemini_research_agent = create_gemini_research_agent(model_config, mcp_servers.get('gemini_research')) # Use .get for safety
+
     # Create list of all specialized agents for root agent
     specialized_agents = [
         filesystem_agent,
@@ -413,9 +439,12 @@ def create_all_agents(model_config, mcp_servers):
         content_scraper_agent,
         fetch_agent,
         perplexity_agent,
-        telegram_agent
+        telegram_agent,
+        gemini_research_agent
     ]
-    
+    # Filter out None entries if an MCP server failed to initialize
+    specialized_agents = [agent for agent in specialized_agents if agent is not None and agent.tools]
+
     # Create root agent
     root_agent = create_root_agent(model_config, specialized_agents)
     
@@ -427,5 +456,6 @@ def create_all_agents(model_config, mcp_servers):
         'fetch': fetch_agent,
         'perplexity': perplexity_agent,
         'telegram': telegram_agent,
+        'gemini_research': gemini_research_agent,
         'root': root_agent
     }

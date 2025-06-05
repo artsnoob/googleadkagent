@@ -162,11 +162,36 @@ async def initialize_all_mcp_servers(error_recovery: ErrorRecoverySystem, exit_s
         quiet
     )
 
+    # Check for Google API key and warn if missing
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key and not quiet:
+        print(f"{COLOR_YELLOW}Warning: GOOGLE_API_KEY is not set in .env. Gemini Research MCP server might fail.{COLOR_RESET}")
+
+    # Initialize Gemini Research server
+    mcp_toolset_instance_gemini_research = await initialize_mcp_server(
+        "gemini_research_agent",
+        lambda: MCPToolset(
+            connection_params=StdioServerParameters(
+                command='sh',
+                    args=[
+                        '-c',
+                        # GEMINI_API_KEY is inherited from the env passed to StdioServerParameters
+                        'cd "/Users/milanboonstra/code/gemini-research-agent-mcp/" && exec node --enable-source-maps "/Users/milanboonstra/code/gemini-research-agent-mcp/dist/index.js"'
+                    ],
+                    env={"GEMINI_API_KEY": google_api_key} if google_api_key else {}
+            )
+        ),
+        error_recovery,
+        exit_stack,
+        quiet
+    )
+
     return {
         'filesystem': mcp_toolset_instance_filesystem,
         'code_executor': mcp_toolset_instance_code_executor,
         'content_scraper': mcp_toolset_instance_content_scraper,
         'fetch': mcp_toolset_instance_fetch,
         'perplexity': mcp_toolset_instance_perplexity,
-        'telegram': mcp_toolset_instance_telegram
+        'telegram': mcp_toolset_instance_telegram,
+        'gemini_research': mcp_toolset_instance_gemini_research
     }
